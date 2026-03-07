@@ -8,15 +8,21 @@
     "start": "next start"
   },
   "dependencies": {
+    "@next-auth/prisma-adapter": "^1.0.7",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "next": "16.1.6",
+    "next-auth": "^4.24.13",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@prisma/client": "^6.19.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "prisma": "^6.19.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

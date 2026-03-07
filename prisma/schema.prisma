@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String   @unique
+  name          String?
+  password      String?   // 加密存储 (仅用于凭证认证)
+  role          Role      @default(USER) // USER, ADMIN
+  purchases     Purchase[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Purchase {
+  id            String    @id @default(cuid())
+  itemName      String    // 物品名称
+  amount        Float     // 总金额
+  currency      String    @default("CNY")
+  buyLink       String?   // 购买链接
+  imageUrl      String?   // 物品图片 URL
+  pdfUrl        String?   // 发票 PDF URL
+  fileName      String?   // 原始文件名
+  note          String?   // 备注
+  status        Status    @default(PENDING) // PENDING, APPROVED, REJECTED
+  submittedBy   User      @relation(fields: [userId], references: [id])
+  userId        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
