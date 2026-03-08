@@ -2,6 +2,8 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { notifyPurchaseStatusChange } from "@/lib/notifications";
+import { Purchase, User } from "@prisma/client";
 
 // 获取单个采购详情
 export async function GET(
@@ -83,6 +85,8 @@ export async function PUT(
       return NextResponse.json({ message: "无权修改" }, { status: 403 });
     }
 
+    const oldStatus = purchase.status;
+
     const updated = await prisma.purchase.update({
       where: { id },
       data,
@@ -96,6 +100,11 @@ export async function PUT(
         },
       },
     });
+
+    // 如果状态发生变化，发送通知
+    if (oldStatus !== updated.status) {
+      await notifyPurchaseStatusChange(updated as Purchase & { submittedBy: User }, oldStatus, updated.status);
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

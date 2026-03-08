@@ -75,6 +75,9 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
               提交时间
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              详情
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               操作
             </th>
           </tr>
@@ -148,6 +151,16 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {formatDate(purchase.createdAt.toISOString())}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <a
+                  href={`/purchases/${purchase.id}`}
+                  className="text-indigo-600 hover:text-indigo-900"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  查看详情
+                </a>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button

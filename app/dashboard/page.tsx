@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+import WithdrawButton from "@/app/purchases/[id]/WithdrawButton";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -136,9 +137,7 @@ export default async function DashboardPage() {
                       查看
                     </Link>
                     {purchase.status === "PENDING" && (
-                      <button className="text-red-600 hover:text-red-900">
-                        撤回
-                      </button>
+                      <WithdrawButton purchaseId={purchase.id} />
                     )}
                   </td>
                 </tr>

@@ -4,11 +4,20 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name } = await request.json();
+    const { email, password, name, realName, studentId, group } = await request.json();
 
-    if (!email || !password) {
+    if (!email || !password || !realName || !studentId || !group) {
       return NextResponse.json(
-        { message: "邮箱和密码为必填项" },
+        { message: "邮箱、密码、真实姓名、学号和组别均为必填项" },
+        { status: 400 }
+      );
+    }
+
+    // 验证组别枚举值
+    const validGroups = ["线路组", "电池组", "电控组", "转向组", "车架组", "悬架组", "车身组", "制动组", "传动组", "综合部"];
+    if (!validGroups.includes(group)) {
+      return NextResponse.json(
+        { message: "组别选择无效" },
         { status: 400 }
       );
     }
@@ -34,6 +43,9 @@ export async function POST(request: Request) {
         email,
         password: hashedPassword,
         name: name || "",
+        realName,
+        studentId,
+        group,
         role: "USER",
       },
     });

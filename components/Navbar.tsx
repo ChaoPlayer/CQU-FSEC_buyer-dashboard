@@ -3,11 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = searchParams.get('tab') || 'purchases';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -45,24 +48,24 @@ export default function Navbar() {
             {session?.user?.role === "ADMIN" && (
               <>
                 <Link
-                  href="/admin"
+                  href="/admin?tab=purchases"
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    isActive("/admin")
+                    pathname === "/admin" && tab === "purchases"
                       ? "bg-indigo-100 text-indigo-700"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  管理员面板
+                  采购管理
                 </Link>
                 <Link
-                  href="/stats"
+                  href="/admin?tab=users"
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    isActive("/stats")
+                    pathname === "/admin" && tab === "users"
                       ? "bg-indigo-100 text-indigo-700"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  统计
+                  用户管理
                 </Link>
               </>
             )}
@@ -105,6 +108,7 @@ export default function Navbar() {
                   {session.user?.role === "ADMIN" ? "管理员" : "用户"}
                 </span>
               </div>
+              <NotificationBell />
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
