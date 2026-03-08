@@ -18,6 +18,7 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
       const res = await fetch(`/api/purchases/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) {

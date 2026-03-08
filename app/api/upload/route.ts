@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     const filePath = path.join(uploadDir, fileName);
 
     // 确保上传目录存在
+    await mkdir(uploadDir, { recursive: true });
     await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
 
     // 返回可访问的 URL

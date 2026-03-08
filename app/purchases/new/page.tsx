@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 export default function NewPurchasePage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  // 检查登录状态
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   // 表单字段
   const [itemName, setItemName] = useState("");
@@ -16,6 +25,8 @@ export default function NewPurchasePage() {
   const [currency, setCurrency] = useState("CNY");
   const [buyLink, setBuyLink] = useState("");
   const [note, setNote] = useState("");
+  const [category, setCategory] = useState("");
+  const [processorContact, setProcessorContact] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
@@ -45,6 +56,7 @@ export default function NewPurchasePage() {
         imageFormData.append("file", imageFile);
         const imageRes = await fetch("/api/upload", {
           method: "POST",
+          credentials: 'include',
           body: imageFormData,
         });
         if (!imageRes.ok) {
@@ -62,6 +74,7 @@ export default function NewPurchasePage() {
         pdfFormData.append("file", pdfFile);
         const pdfRes = await fetch("/api/upload", {
           method: "POST",
+          credentials: 'include',
           body: pdfFormData,
         });
         if (!pdfRes.ok) {
@@ -76,6 +89,7 @@ export default function NewPurchasePage() {
       const purchaseRes = await fetch("/api/purchases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           itemName,
           amount: parseFloat(amount),
@@ -85,6 +99,8 @@ export default function NewPurchasePage() {
           pdfUrl: pdfUrl || null,
           fileName: fileName || null,
           note: note || null,
+          category: category || null,
+          processorContact: processorContact || null,
         }),
       });
 
@@ -103,6 +119,19 @@ export default function NewPurchasePage() {
       setLoading(false);
     }
   };
+
+  // 如果正在检查会话或未登录，显示加载中或空白
+  if (status === "loading") {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-gray-500">检查登录状态...</div>
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null; // useEffect 会重定向，这里留空
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -163,6 +192,41 @@ export default function NewPurchasePage() {
             />
           </div>
         </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            采购类型 *
+          </label>
+          <select
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">请选择采购类型</option>
+            <option value="电子元件">电子元件</option>
+            <option value="加工定制件">加工定制件</option>
+            <option value="紧固件">紧固件</option>
+            <option value="仪器">仪器</option>
+            <option value="差旅费">差旅费</option>
+          </select>
+        </div>
+
+        {category === "加工定制件" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              加工商联系方式 *
+            </label>
+            <input
+              type="text"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              placeholder="例如：电话/微信/邮箱"
+              value={processorContact}
+              onChange={(e) => setProcessorContact(e.target.value)}
+            />
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

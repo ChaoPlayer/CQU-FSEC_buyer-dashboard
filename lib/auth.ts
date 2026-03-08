@@ -35,6 +35,7 @@ export const authOptions = {
           throw new Error("密码错误");
         }
 
+        console.log('认证成功，用户ID:', user.id);
         return {
           id: user.id,
           email: user.email,
@@ -53,16 +54,20 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }: any) {
+      console.log('jwt回调 user:', user);
       if (user) {
         token.role = (user as any).role;
         token.id = (user as any).id;
+        console.log('设置 token id:', token.id);
       }
       return token;
     },
     async session({ session, token }: any) {
+      console.log('session回调 token:', token);
       if (session.user) {
         session.user.role = token.role as string;
         session.user.id = token.id as string;
+        console.log('设置 session user id:', session.user.id);
       }
       return session;
     },

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import AdminPurchaseTable from "@/components/AdminPurchaseTable";
+import UserManagementTable from "@/components/UserManagementTable";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -64,6 +65,17 @@ export default async function AdminPage() {
           <p className="mt-2 text-3xl font-bold text-green-600">{userCount}</p>
           <p className="text-sm text-gray-500">已注册用户数量</p>
         </div>
+      </div>
+
+      {/* 用户管理 */}
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <div className="px-6 py-4 border-b flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-800">用户管理</h2>
+          <div className="text-sm text-gray-500">
+            共 {userCount} 位用户
+          </div>
+        </div>
+        <UserManagementTable />
       </div>
 
       {/* 采购表格 */}

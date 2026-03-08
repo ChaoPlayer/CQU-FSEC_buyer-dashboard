@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -7,6 +8,19 @@ import { usePathname } from "next/navigation";
 export default function Navbar() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -52,16 +66,29 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            <Link
-              href="/purchases/new"
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                isActive("/purchases/new")
-                  ? "bg-indigo-100 text-indigo-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              提交采购
-            </Link>
+            {session ? (
+              <Link
+                href="/purchases/new"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive("/purchases/new")
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                提交采购
+              </Link>
+            ) : (
+              <Link
+                href="/guide"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive("/guide")
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                使用说明
+              </Link>
+            )}
           </div>
         </div>
 
@@ -78,26 +105,32 @@ export default function Navbar() {
                   {session.user?.role === "ADMIN" ? "管理员" : "用户"}
                 </span>
               </div>
-              <div className="relative group">
-                <button className="flex items-center space-x-1 text-gray-700 hover:text-indigo-700">
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-1 text-gray-700 hover:text-indigo-700 focus:outline-none"
+                >
                   <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-800 font-bold">
                     {session.user?.name?.[0]?.toUpperCase() || session.user?.email?.[0]?.toUpperCase()}
                   </div>
                 </button>
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden group-hover:block z-10">
-                  <Link
-                    href="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    个人资料
-                  </Link>
-                  <button
-                    onClick={() => signOut({ callbackUrl: "/login" })}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    退出登录
-                  </button>
-                </div>
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      个人资料
+                    </Link>
+                    <button
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      退出登录
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           ) : (

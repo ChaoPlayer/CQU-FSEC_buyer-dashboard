@@ -13,6 +13,7 @@ model User {
   name          String?
   password      String?   // 加密存储 (仅用于凭证认证)
   role          Role      @default(USER) // USER, ADMIN
+  maxLimit      Float?    @default(10000) // 用户可提交的最大金额上限，null 表示无限制
   purchases     Purchase[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -21,6 +22,8 @@ model User {
 model Purchase {
   id            String    @id @default(cuid())
   itemName      String    // 物品名称
+  category      String?   // 采购类型，如电子元件、加工定制件等
+  processorContact String? // 加工商联系方式（仅当 category 为加工定制件时填写）
   amount        Float     // 总金额
   currency      String    @default("CNY")
   buyLink       String?   // 购买链接

@@ -56,12 +56,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
+    console.log('采购API会话:', session);
     if (!session) {
       return NextResponse.json({ message: "未授权" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { itemName, amount, currency, buyLink, imageUrl, pdfUrl, fileName, note } = body;
+    const { itemName, amount, currency, buyLink, imageUrl, pdfUrl, fileName, note, category, processorContact } = body;
 
     if (!itemName || amount === undefined) {
       return NextResponse.json(
@@ -79,6 +80,10 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!session.user.id) {
+      return NextResponse.json({ message: "用户ID缺失" }, { status: 400 });
+    }
+    console.log('创建采购，用户ID:', session.user.id, '角色:', session.user.role);
     const purchase = await prisma.purchase.create({
       data: {
         itemName,
@@ -89,6 +94,10 @@ export async function POST(request: Request) {
         pdfUrl: pdfUrl || null,
         fileName: fileName || null,
         note: note || null,
+        // @ts-ignore
+        category: category || null,
+        // @ts-ignore
+        processorContact: processorContact || null,
         status: "PENDING",
         userId: session.user.id,
       },
