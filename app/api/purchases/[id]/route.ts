@@ -71,12 +71,21 @@ export async function PUT(
 
     // 只有管理员可以更新采购状态，用户只能更新自己的采购（某些字段）
     const body = await request.json();
-    const { status, note } = body;
+    const { status, note, rejectionReason } = body;
 
     // 如果用户是管理员，可以更新状态；否则只能更新备注
     const data: any = {};
     if (session.user.role === "ADMIN") {
       if (status) data.status = status;
+      // 管理员可以设置拒绝理由（仅当状态为 REJECTED 或明确提供时）
+      if (rejectionReason !== undefined) {
+        data.rejectionReason = rejectionReason;
+      }
+      // 如果状态变为 APPROVED，清除拒绝理由
+      if (status === "APPROVED") {
+        data.rejectionReason = null;
+      }
+      // 如果状态变为 REJECTED 但未提供拒绝理由，保持原有拒绝理由（可能为空）
     }
     if (note !== undefined) data.note = note;
 

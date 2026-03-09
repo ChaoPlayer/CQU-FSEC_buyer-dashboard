@@ -10,6 +10,9 @@ interface User {
   role: Role;
   maxLimit: number | null;
   createdAt: string;
+  totalPurchases: number;
+  totalAmount: number;
+  pendingCount: number;
 }
 
 export default function UserManagementTable() {
@@ -17,6 +20,8 @@ export default function UserManagementTable() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingMaxLimitId, setEditingMaxLimitId] = useState<string | null>(null);
+  const [tempMaxLimit, setTempMaxLimit] = useState<string>('');
 
   const fetchUsers = async () => {
     try {
@@ -49,7 +54,17 @@ export default function UserManagementTable() {
       if (!res.ok) throw new Error("更新角色失败");
       const updatedUser = await res.json();
       setUsers((prev) =>
-        prev.map((user) => (user.id === updatedUser.id ? updatedUser : user))
+        prev.map((user) =>
+          user.id === updatedUser.id
+            ? {
+                ...user,
+                ...updatedUser,
+                totalPurchases: user.totalPurchases,
+                totalAmount: user.totalAmount,
+                pendingCount: user.pendingCount,
+              }
+            : user
+        )
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "更新失败");
@@ -59,6 +74,7 @@ export default function UserManagementTable() {
   };
 
   const handleMaxLimitChange = async (id: string, newMaxLimit: number | null) => {
+    console.log('handleMaxLimitChange', { id, newMaxLimit });
     setUpdatingId(id);
     try {
       const res = await fetch(`/api/admin/users`, {
@@ -67,15 +83,33 @@ export default function UserManagementTable() {
         credentials: 'include',
         body: JSON.stringify({ id, maxLimit: newMaxLimit }),
       });
-      if (!res.ok) throw new Error("更新限额失败");
+      console.log('响应状态:', res.status, res.ok);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('更新限额失败:', errorText);
+        throw new Error(`更新限额失败: ${res.status} ${errorText}`);
+      }
       const updatedUser = await res.json();
+      console.log('更新成功:', updatedUser);
       setUsers((prev) =>
-        prev.map((user) => (user.id === updatedUser.id ? updatedUser : user))
+        prev.map((user) =>
+          user.id === updatedUser.id
+            ? {
+                ...user,
+                ...updatedUser,
+                totalPurchases: user.totalPurchases,
+                totalAmount: user.totalAmount,
+                pendingCount: user.pendingCount,
+              }
+            : user
+        )
       );
     } catch (err) {
+      console.error('handleMaxLimitChange 错误:', err);
       setError(err instanceof Error ? err.message : "更新失败");
     } finally {
       setUpdatingId(null);
+      setEditingMaxLimitId(null);
     }
   };
 
@@ -122,7 +156,19 @@ export default function UserManagementTable() {
               最大限额 (¥)
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              申请数
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              总金额
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              待审批
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               注册时间
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              操作
             </th>
           </tr>
         </thead>
@@ -161,37 +207,84 @@ export default function UserManagementTable() {
                 )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                {updatingId === user.id ? (
+                {editingMaxLimitId === user.id ? (
                   <div className="flex items-center space-x-2">
                     <input
                       type="number"
                       step="0.01"
                       min="0"
-                      value={user.maxLimit ?? ""}
-                      onChange={(e) =>
-                        handleMaxLimitChange(
-                          user.id,
-                          e.target.value === "" ? null : parseFloat(e.target.value)
-                        )
-                      }
+                      value={tempMaxLimit}
+                      onChange={(e) => setTempMaxLimit(e.target.value)}
                       className="border rounded px-2 py-1 text-sm w-32"
                       placeholder="无限制"
+                      autoFocus
                     />
                     <button
-                      onClick={() => handleMaxLimitChange(user.id, null)}
+                      onClick={() => {
+                        const numValue = tempMaxLimit === "" ? null : parseFloat(tempMaxLimit);
+                        handleMaxLimitChange(user.id, numValue);
+                        setEditingMaxLimitId(null);
+                      }}
+                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                      disabled={updatingId === user.id}
+                    >
+                      {updatingId === user.id ? "保存中..." : "保存"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingMaxLimitId(null);
+                        setTempMaxLimit("");
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleMaxLimitChange(user.id, null);
+                        setEditingMaxLimitId(null);
+                      }}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
                       清除
                     </button>
                   </div>
                 ) : (
-                  <span className="text-sm text-gray-900">
-                    {user.maxLimit ? `¥${user.maxLimit.toFixed(2)}` : "无限制"}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-900">
+                      {user.maxLimit ? `¥${user.maxLimit.toFixed(2)}` : "无限制"}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingMaxLimitId(user.id);
+                        setTempMaxLimit(user.maxLimit?.toString() ?? "");
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-900"
+                    >
+                      编辑
+                    </button>
+                  </div>
                 )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                {user.totalPurchases ?? 0}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                ¥{user.totalAmount?.toFixed(2) ?? '0.00'}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                {user.pendingCount ?? 0}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {new Date(user.createdAt).toLocaleDateString("zh-CN")}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <button
+                  onClick={() => window.location.href = `/profile?userId=${user.id}`}
+                  className="text-indigo-600 hover:text-indigo-900"
+                >
+                  个人信息
+                </button>
               </td>
             </tr>
           ))}

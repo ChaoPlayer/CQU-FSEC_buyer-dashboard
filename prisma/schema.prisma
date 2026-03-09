@@ -50,6 +50,7 @@ model Purchase {
   fileName         String? // 原始文件名
   note             String? // 备注
   status           Status         @default(PENDING) // PENDING, APPROVED, REJECTED
+  rejectionReason  String?        // 拒绝理由（仅当 status = REJECTED 时）
   submittedBy      User           @relation(fields: [userId], references: [id])
   userId           String
   createdAt        DateTime       @default(now())

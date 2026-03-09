@@ -6,6 +6,7 @@ import { Status } from "@prisma/client";
 import Link from "next/link";
 import WithdrawButton from "./WithdrawButton";
 import AdminWithdrawActions from "./AdminWithdrawActions";
+import AdminActions from "./AdminActions";
 
 export default async function PurchaseDetailPage({
   params,
@@ -85,14 +86,6 @@ export default async function PurchaseDetailPage({
           </Link>
           {isOwner && purchase.status === "PENDING" && (
             <WithdrawButton purchaseId={purchase.id} />
-          )}
-          {isAdmin && (
-            <Link
-              href={`/admin/purchases/${purchase.id}`}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-            >
-              管理
-            </Link>
           )}
         </div>
       </div>
@@ -219,15 +212,31 @@ export default async function PurchaseDetailPage({
           {isAdmin && (
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-4">管理操作</h2>
-              <div className="space-y-3">
-                <Link
-                  href={`/admin/purchases/${purchase.id}/review`}
-                  className="block w-full text-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                >
-                  审核此采购
-                </Link>
-                {(purchase.status as string) === "WITHDRAWAL_REQUESTED" && (
+              <AdminActions purchase={purchase} />
+              {(purchase.status as string) === "WITHDRAWAL_REQUESTED" && (
+                <div className="mt-6 pt-6 border-t">
                   <AdminWithdrawActions purchaseId={purchase.id} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 申请状态（普通用户） */}
+          {!isAdmin && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">申请状态</h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">当前状态：</span>
+                  <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColor}`}>
+                    {statusText}
+                  </span>
+                </div>
+                {purchase.status === "REJECTED" && purchase.rejectionReason && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm font-medium text-gray-700">拒绝理由：</p>
+                    <p className="text-sm text-gray-600 mt-1">{purchase.rejectionReason}</p>
+                  </div>
                 )}
               </div>
             </div>
