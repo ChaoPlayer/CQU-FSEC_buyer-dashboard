@@ -56,6 +56,7 @@ model Purchase {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   notifications    Notification[]
+  statusHistory   PurchaseStatusHistory[]
 }
 
 enum Role {
@@ -82,4 +83,14 @@ enum Group {
   制动组
   传动组
   综合部
+}
+
+model PurchaseStatusHistory {
+  id         String   @id @default(cuid())
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchaseId String
+  status     Status
+  reason     String?  // 状态变更理由，例如拒绝理由
+  createdBy  String?  // 操作者用户 ID（可选）
+  createdAt  DateTime @default(now())
 }

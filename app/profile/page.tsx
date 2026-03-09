@@ -125,7 +125,7 @@ export default async function ProfilePage({
                 返回仪表盘
               </Link>
               <Link
-                href="/profile/edit"
+                href={`/profile/edit${userId ? `?userId=${userId}` : ''}`}
                 className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
               >
                 编辑个人资料

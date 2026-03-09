@@ -27,6 +27,9 @@ export async function GET(
             name: true,
           },
         },
+        statusHistory: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -110,8 +113,16 @@ export async function PUT(
       },
     });
 
-    // 如果状态发生变化，发送通知
+    // 如果状态发生变化，创建状态历史记录并发送通知
     if (oldStatus !== updated.status) {
+      await prisma.purchaseStatusHistory.create({
+        data: {
+          purchaseId: id,
+          status: updated.status,
+          reason: rejectionReason || null,
+          createdBy: session.user.id,
+        },
+      });
       await notifyPurchaseStatusChange(updated as Purchase & { submittedBy: User }, oldStatus, updated.status);
     }
 

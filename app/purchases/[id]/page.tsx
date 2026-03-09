@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Status } from "@prisma/client";
+import { PurchaseWithUser } from '@/types';
 import Link from "next/link";
 import WithdrawButton from "./WithdrawButton";
 import AdminWithdrawActions from "./AdminWithdrawActions";
@@ -28,6 +29,9 @@ export default async function PurchaseDetailPage({
           name: true,
           email: true,
         },
+      },
+      statusHistory: {
+        orderBy: { createdAt: 'desc' },
       },
     },
   });
@@ -245,17 +249,46 @@ export default async function PurchaseDetailPage({
           {/* 状态历史 */}
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">状态历史</h2>
-            <ul className="space-y-2">
-              <li className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                <span className="text-sm text-gray-700">创建于 {new Date(purchase.createdAt).toLocaleString("zh-CN")}</span>
+            <ul className="space-y-3">
+              <li className="flex items-start">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-3 mt-2"></div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-gray-700">创建采购申请</span>
+                  <span className="text-sm text-gray-500 ml-2">于 {new Date(purchase.createdAt).toLocaleString("zh-CN")}</span>
+                  <p className="text-xs text-gray-400 mt-1">状态：待审核</p>
+                </div>
               </li>
-              {purchase.status !== "PENDING" && (
-                <li className="flex items-center">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
-                  <span className="text-sm text-gray-700">状态变更为 {statusText} 于 {new Date(purchase.updatedAt).toLocaleString("zh-CN")}</span>
-                </li>
-              )}
+              {purchase.statusHistory && purchase.statusHistory.map((history, idx) => {
+                const historyStatusText = {
+                  PENDING: "待审核",
+                  APPROVED: "已批准",
+                  REJECTED: "已拒绝",
+                  WITHDRAWAL_REQUESTED: "撤回申请中",
+                  WITHDRAWN: "已撤回",
+                }[history.status] || history.status;
+                const historyColor = {
+                  PENDING: "bg-yellow-500",
+                  APPROVED: "bg-green-500",
+                  REJECTED: "bg-red-500",
+                  WITHDRAWAL_REQUESTED: "bg-purple-500",
+                  WITHDRAWN: "bg-gray-500",
+                }[history.status] || "bg-gray-500";
+                return (
+                  <li key={history.id} className="flex items-start">
+                    <div className={`w-2 h-2 ${historyColor} rounded-full mr-3 mt-2`}></div>
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-700">状态变更为 {historyStatusText}</span>
+                      <span className="text-sm text-gray-500 ml-2">于 {new Date(history.createdAt).toLocaleString("zh-CN")}</span>
+                      {history.reason && (
+                        <p className="text-sm text-gray-600 mt-1">理由：{history.reason}</p>
+                      )}
+                      {history.createdBy && (
+                        <p className="text-xs text-gray-400 mt-1">操作者 ID：{history.createdBy}</p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

@@ -12,6 +12,7 @@ export default function Navbar() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'purchases';
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 点击外部关闭下拉菜单
@@ -25,7 +26,11 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const isActive = (path: string) => pathname === path;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const isActive = (path: string) => isMounted && pathname === path;
 
   return (
     <nav className="bg-white shadow-md">

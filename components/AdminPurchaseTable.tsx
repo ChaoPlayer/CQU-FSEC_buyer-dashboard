@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PurchaseWithUser } from "@/types";
 import { Status } from "@prisma/client";
 
@@ -11,6 +11,13 @@ interface AdminPurchaseTableProps {
 export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProps) {
   const [localPurchases, setLocalPurchases] = useState(purchases);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setLocalPurchases(purchases);
+    // 清空选中状态，因为数据已变更
+    setSelectedIds([]);
+  }, [purchases]);
 
   const handleStatusChange = async (id: string, newStatus: Status) => {
     setUpdatingId(id);
@@ -50,17 +57,93 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
     document.body.removeChild(link);
   };
 
+  const handleBatchApprove = async () => {
+    if (selectedIds.length === 0) {
+      alert("请至少选择一条申请");
+      return;
+    }
+    for (const id of selectedIds) {
+      await handleStatusChange(id, "APPROVED");
+    }
+  };
+
+  const handleBatchReject = async () => {
+    if (selectedIds.length === 0) {
+      alert("请至少选择一条申请");
+      return;
+    }
+    for (const id of selectedIds) {
+      await handleStatusChange(id, "REJECTED");
+    }
+  };
+
+  const handleBatchDownloadPdf = () => {
+    if (selectedIds.length === 0) {
+      alert("请至少选择一条申请");
+      return;
+    }
+    localPurchases
+      .filter(p => selectedIds.includes(p.id) && p.pdfUrl)
+      .forEach(p => downloadPdf(p.pdfUrl, p.fileName, p.itemName));
+    if (selectedIds.every(id => !localPurchases.find(p => p.id === id)?.pdfUrl)) {
+      alert("选中的申请均没有 PDF 发票");
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("zh-CN");
   };
 
   return (
     <div className="overflow-x-auto">
+      {selectedIds.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+          <span className="text-sm text-blue-800">
+            已选择 <strong>{selectedIds.length}</strong> 条申请
+          </span>
+          <div className="space-x-3">
+            <button
+              onClick={handleBatchApprove}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+            >
+              批量批准
+            </button>
+            <button
+              onClick={handleBatchReject}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+            >
+              批量拒绝
+            </button>
+            <button
+              onClick={handleBatchDownloadPdf}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm"
+            >
+              批量下载PDF
+            </button>
+          </div>
+        </div>
+      )}
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === localPurchases.length}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedIds(localPurchases.map(p => p.id));
+                  } else {
+                    setSelectedIds([]);
+                  }
+                }}
+              />
+            </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               用户
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              组别
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               物品名称
@@ -85,6 +168,19 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
         <tbody className="divide-y divide-gray-200">
           {localPurchases.map((purchase) => (
             <tr key={purchase.id} className="hover:bg-gray-50">
+              <td className="px-4 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(purchase.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds([...selectedIds, purchase.id]);
+                    } else {
+                      setSelectedIds(selectedIds.filter(id => id !== purchase.id));
+                    }
+                  }}
+                />
+              </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
                   {purchase.submittedBy?.name || purchase.submittedBy?.email}
@@ -92,6 +188,11 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
                 <div className="text-xs text-gray-500">
                   {purchase.submittedBy?.email}
                 </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <span className="text-sm text-gray-900">
+                  {purchase.submittedBy?.group || '未分组'}
+                </span>
               </td>
               <td className="px-6 py-4">
                 <div className="text-sm font-medium text-gray-900">
