@@ -43,3 +43,9 @@ next-env.d.ts
 # database
 prisma/dev.db
 data/
+
+# test scripts
+test-*.js
+
+# uploads
+public/uploads/
