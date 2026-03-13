@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useState, useEffect } from "react";
 import { PurchaseWithUser } from "@/types";
 import { Status } from "@prisma/client";
+import { ChevronRightIcon, ChevronDownIcon } from "@heroicons/react/24/outline";
 
 interface AdminPurchaseTableProps {
   purchases: PurchaseWithUser[];
@@ -12,6 +14,7 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
   const [localPurchases, setLocalPurchases] = useState(purchases);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setLocalPurchases(purchases);
@@ -41,6 +44,18 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const toggleRow = (id: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
   };
 
   const downloadPdf = (pdfUrl: string | null, fileName: string | null, itemName: string) => {
@@ -126,6 +141,9 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
+            <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              展开
+            </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <input
                 type="checkbox"
@@ -167,126 +185,167 @@ export default function AdminPurchaseTable({ purchases }: AdminPurchaseTableProp
         </thead>
         <tbody className="divide-y divide-gray-200">
           {localPurchases.map((purchase) => (
-            <tr key={purchase.id} className="hover:bg-gray-50">
-              <td className="px-4 py-4 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(purchase.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIds([...selectedIds, purchase.id]);
-                    } else {
-                      setSelectedIds(selectedIds.filter(id => id !== purchase.id));
-                    }
-                  }}
-                />
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900">
-                  {purchase.submittedBy?.name || purchase.submittedBy?.email}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {purchase.submittedBy?.email}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className="text-sm text-gray-900">
-                  {purchase.submittedBy?.group || '未分组'}
-                </span>
-              </td>
-              <td className="px-6 py-4">
-                <div className="text-sm font-medium text-gray-900">
-                  {purchase.itemName}
-                </div>
-                {purchase.note && (
-                  <div className="text-sm text-gray-500">{purchase.note}</div>
-                )}
-                {purchase.buyLink && (
+            <React.Fragment key={purchase.id}>
+              <tr className="hover:bg-gray-50">
+                <td className="px-2 py-4 whitespace-nowrap">
+                  <button
+                    onClick={() => toggleRow(purchase.id)}
+                    className="p-1 hover:bg-gray-200 rounded transition"
+                    aria-label={expandedRows.has(purchase.id) ? "收起" : "展开"}
+                  >
+                    {expandedRows.has(purchase.id) ? (
+                      <ChevronDownIcon className="w-4 h-4 text-gray-600" />
+                    ) : (
+                      <ChevronRightIcon className="w-4 h-4 text-gray-600" />
+                    )}
+                  </button>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(purchase.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds([...selectedIds, purchase.id]);
+                      } else {
+                        setSelectedIds(selectedIds.filter(id => id !== purchase.id));
+                      }
+                    }}
+                  />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">
+                    {purchase.submittedBy?.name || purchase.submittedBy?.email}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {purchase.submittedBy?.email}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className="text-sm text-gray-900">
+                    {purchase.submittedBy?.group || '未分组'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="text-sm font-medium text-gray-900">
+                    {purchase.itemName}
+                  </div>
+                  {purchase.note && (
+                    <div className="text-sm text-gray-500">{purchase.note}</div>
+                  )}
+                  {purchase.buyLink && (
+                    <a
+                      href={purchase.buyLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-indigo-600 hover:underline"
+                    >
+                      查看链接
+                    </a>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-semibold text-gray-900">
+                    ¥{purchase.amount.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">{purchase.currency}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        purchase.status === "APPROVED"
+                          ? "bg-green-100 text-green-800"
+                          : purchase.status === "REJECTED"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {purchase.status === "APPROVED"
+                        ? "已批准"
+                        : purchase.status === "REJECTED"
+                        ? "已拒绝"
+                        : "待审核"}
+                    </span>
+                    {updatingId === purchase.id ? (
+                      <span className="text-xs text-gray-500">更新中...</span>
+                    ) : (
+                      <select
+                        value={purchase.status}
+                        onChange={(e) => handleStatusChange(purchase.id, e.target.value as Status)}
+                        className="text-xs border rounded p-1"
+                      >
+                        <option value="PENDING">待审核</option>
+                        <option value="APPROVED">批准</option>
+                        <option value="REJECTED">拒绝</option>
+                      </select>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {formatDate(purchase.createdAt.toISOString())}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <a
-                    href={purchase.buyLink}
+                    href={`/purchases/${purchase.id}`}
+                    className="text-indigo-600 hover:text-indigo-900"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-indigo-600 hover:underline"
                   >
-                    查看链接
+                    查看详情
                   </a>
-                )}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-semibold text-gray-900">
-                  ¥{purchase.amount.toFixed(2)}
-                </div>
-                <div className="text-xs text-gray-500">{purchase.currency}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      purchase.status === "APPROVED"
-                        ? "bg-green-100 text-green-800"
-                        : purchase.status === "REJECTED"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  <button
+                    onClick={() =>
+                      downloadPdf(purchase.pdfUrl, purchase.fileName, purchase.itemName)
+                    }
+                    className="text-indigo-600 hover:text-indigo-900"
+                    disabled={!purchase.pdfUrl}
                   >
-                    {purchase.status === "APPROVED"
-                      ? "已批准"
-                      : purchase.status === "REJECTED"
-                      ? "已拒绝"
-                      : "待审核"}
-                  </span>
-                  {updatingId === purchase.id ? (
-                    <span className="text-xs text-gray-500">更新中...</span>
-                  ) : (
-                    <select
-                      value={purchase.status}
-                      onChange={(e) => handleStatusChange(purchase.id, e.target.value as Status)}
-                      className="text-xs border rounded p-1"
-                    >
-                      <option value="PENDING">待审核</option>
-                      <option value="APPROVED">批准</option>
-                      <option value="REJECTED">拒绝</option>
-                    </select>
-                  )}
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {formatDate(purchase.createdAt.toISOString())}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                <a
-                  href={`/purchases/${purchase.id}`}
-                  className="text-indigo-600 hover:text-indigo-900"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  查看详情
-                </a>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <button
-                  onClick={() =>
-                    downloadPdf(purchase.pdfUrl, purchase.fileName, purchase.itemName)
-                  }
-                  className="text-indigo-600 hover:text-indigo-900"
-                  disabled={!purchase.pdfUrl}
-                >
-                  下载PDF
-                </button>
-                <button
-                  onClick={() => handleStatusChange(purchase.id, "APPROVED")}
-                  className="text-green-600 hover:text-green-900"
-                >
-                  批准
-                </button>
-                <button
-                  onClick={() => handleStatusChange(purchase.id, "REJECTED")}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  拒绝
-                </button>
-              </td>
-            </tr>
+                    下载PDF
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(purchase.id, "APPROVED")}
+                    className="text-green-600 hover:text-green-900"
+                  >
+                    批准
+                  </button>
+                  <button
+                    onClick={() => handleStatusChange(purchase.id, "REJECTED")}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    拒绝
+                  </button>
+                </td>
+              </tr>
+              {expandedRows.has(purchase.id) && (
+                <tr className="bg-gray-50">
+                  <td colSpan={10} className="px-6 py-4">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">物资类别:</span>
+                          <span className="ml-2 text-gray-900">{purchase.materialCategory || '未指定'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">是否已开发票:</span>
+                          <span className="ml-2 text-gray-900">{purchase.hasInvoice ? '是' : '否'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">是否垫付:</span>
+                          <span className="ml-2 text-gray-900">{purchase.isAdvancedPayment ? '是' : '否'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-500">垫付人:</span>
+                          <span className="ml-2 text-gray-900">{purchase.advancerName || '无'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

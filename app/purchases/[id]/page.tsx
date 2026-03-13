@@ -128,6 +128,22 @@ export default async function PurchaseDetailPage({
                   <dd className="mt-1 text-gray-900">{(purchase as any).processorContact}</dd>
                 </div>
               )}
+              <div>
+                <dt className="text-sm font-medium text-gray-500">物资类别</dt>
+                <dd className="mt-1 text-gray-900">{(purchase as any).materialCategory || '未指定'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">是否已开发票</dt>
+                <dd className="mt-1 text-gray-900">{(purchase as any).hasInvoice ? '是' : '否'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">是否垫付</dt>
+                <dd className="mt-1 text-gray-900">{(purchase as any).isAdvancedPayment ? '是' : '否'}</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">垫付人</dt>
+                <dd className="mt-1 text-gray-900">{(purchase as any).advancerName || '无'}</dd>
+              </div>
               <div className="md:col-span-2">
                 <dt className="text-sm font-medium text-gray-500">购买链接</dt>
                 <dd className="mt-1">

@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { Purchase, User } from "@prisma/client";
+import { Purchase, User, WorkSubmission } from "@prisma/client";
 
 /**
  * 创建一条通知
@@ -72,6 +72,41 @@ export async function notifyPurchaseStatusChange(
       });
     }
   }
+}
+
+/**
+ * 通知所有管理员有新的工作申请
+ */
+export async function notifyNewWorkSubmission(
+  submission: WorkSubmission & { user: User }
+) {
+  const admins = await prisma.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+  for (const admin of admins) {
+    await createNotification({
+      userId: admin.id,
+      type: "new_work_submission",
+      title: `新的工作申请：${submission.title}`,
+      content: `用户 ${submission.user.name || submission.user.email} 提交了工作申请 "${submission.title}"，请及时审批。`,
+    });
+  }
+}
+
+/**
+ * 通知用户工作申请已批准并兑换工时
+ */
+export async function notifyWorkSubmissionApproval(
+  submission: WorkSubmission & { user: User },
+  hours: number
+) {
+  await createNotification({
+    userId: submission.userId,
+    type: "work_submission_approved",
+    title: `工作申请已批准：${submission.title}`,
+    content: `您的工作申请 "${submission.title}" 已批准，兑换 ${hours} 小时工时。`,
+  });
 }
 
 /**

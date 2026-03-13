@@ -9,7 +9,7 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "采购报销管理系统",
+  title: "重庆大学方程式赛车队工作平台",
   description: "团队采购报销管理平台",
 };
 
@@ -25,9 +25,9 @@ export default async function RootLayout({
       <body className={`${inter.className} bg-gray-50`}>
         <Providers session={session}>
           <Navbar />
-          <main className="container mx-auto px-4 py-8">{children}</main>
+          <main className="container mx-auto px-4 pt-16 pb-8">{children}</main>
           <footer className="mt-12 border-t py-6 text-center text-sm text-gray-500">
-            © 2026 采购报销管理系统 - 内部使用
+            © 2026 重庆大学方程式赛车队工作平台 - 内部使用
           </footer>
         </Providers>
       </body>

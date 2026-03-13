@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { itemName, amount, currency, buyLink, imageUrl, pdfUrl, fileName, note, category, processorContact } = body;
+    const { itemName, amount, currency, buyLink, imageUrl, pdfUrl, fileName, note, category, processorContact, materialCategory, hasInvoice, isAdvancedPayment, advancerName } = body;
 
     if (!itemName || amount === undefined) {
       return NextResponse.json(
@@ -99,6 +99,10 @@ export async function POST(request: Request) {
         category: category || null,
         // @ts-ignore
         processorContact: processorContact || null,
+        materialCategory: materialCategory || null,
+        hasInvoice: hasInvoice ?? null,
+        isAdvancedPayment: isAdvancedPayment ?? null,
+        advancerName: advancerName || null,
         status: "PENDING",
         userId: session.user.id,
       },

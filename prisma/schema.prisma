@@ -19,6 +19,8 @@ model User {
   group         Group?         // 所属组别
   purchases     Purchase[]
   notifications Notification[]
+  workSubmissions WorkSubmission[]
+  hourRecords   HourRecord[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -49,6 +51,10 @@ model Purchase {
   pdfUrl           String? // 发票 PDF URL
   fileName         String? // 原始文件名
   note             String? // 备注
+  materialCategory String? // 物资类别：车队资产 或 耗材
+  hasInvoice       Boolean? // 是否已开发票
+  isAdvancedPayment Boolean? // 是否垫付
+  advancerName     String? // 垫付人
   status           Status         @default(PENDING) // PENDING, APPROVED, REJECTED
   rejectionReason  String?        // 拒绝理由（仅当 status = REJECTED 时）
   submittedBy      User           @relation(fields: [userId], references: [id])
@@ -93,4 +99,52 @@ model PurchaseStatusHistory {
   reason     String?  // 状态变更理由，例如拒绝理由
   createdBy  String?  // 操作者用户 ID（可选）
   createdAt  DateTime @default(now())
+}
+
+enum WorkSubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum HourType {
+  ATTENDANCE
+  WORK
+}
+
+model WorkSubmission {
+  id            String               @id @default(cuid())
+  title         String               // 工作名称
+  description   String?              // 工作内容
+  fileUrl       String?              // 文件URL
+  fileName      String?              // 原始文件名
+  status        WorkSubmissionStatus @default(PENDING)
+  approvedHours Float?               // 审批兑换的工时（小时）
+  approvedAt    DateTime?            // 审批时间
+  approvedBy    String?              // 审批管理员ID
+  user          User                 @relation(fields: [userId], references: [id])
+  userId        String
+  hourRecords   HourRecord[]         // 关联的工时记录
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model HourRecord {
+  id             String         @id @default(cuid())
+  type           HourType       // 工时类型：ATTENDANCE（考勤）或 WORK（工作）
+  hours          Float          // 工时数（小时）
+  date           DateTime       @default(now()) // 工时所属日期
+  description    String?        // 描述
+  user           User           @relation(fields: [userId], references: [id])
+  userId         String
+  workSubmission WorkSubmission? @relation(fields: [submissionId], references: [id])
+  submissionId   String?        // 关联的工作提交ID（仅type=WORK时）
+  createdAt      DateTime       @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([date])
 }

@@ -74,7 +74,7 @@ export async function PUT(
 
     // 只有管理员可以更新采购状态，用户只能更新自己的采购（某些字段）
     const body = await request.json();
-    const { status, note, rejectionReason } = body;
+    const { status, note, rejectionReason, materialCategory, hasInvoice, isAdvancedPayment, advancerName } = body;
 
     // 如果用户是管理员，可以更新状态；否则只能更新备注
     const data: any = {};
@@ -91,6 +91,10 @@ export async function PUT(
       // 如果状态变为 REJECTED 但未提供拒绝理由，保持原有拒绝理由（可能为空）
     }
     if (note !== undefined) data.note = note;
+    if (materialCategory !== undefined) data.materialCategory = materialCategory;
+    if (hasInvoice !== undefined) data.hasInvoice = hasInvoice;
+    if (isAdvancedPayment !== undefined) data.isAdvancedPayment = isAdvancedPayment;
+    if (advancerName !== undefined) data.advancerName = advancerName;
 
     // 确保用户只能更新自己的采购（除非是管理员）
     if (session.user.role !== "ADMIN" && purchase.userId !== session.user.id) {

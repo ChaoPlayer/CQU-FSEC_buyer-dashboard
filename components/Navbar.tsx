@@ -33,11 +33,12 @@ export default function Navbar() {
   const isActive = (path: string) => isMounted && pathname === path;
 
   return (
-    <nav className="bg-white shadow-md">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-white/30 backdrop-blur-md border-b border-white/40 transition-all">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-8">
-          <Link href="/" className="text-xl font-bold text-indigo-700">
-            采购报销管理系统
+          <Link href="/" className="flex items-center gap-3 text-xl font-bold text-indigo-700">
+            <img src="/LOGO.jpg" alt="Logo" className="h-8 w-auto" />
+            重庆大学方程式赛车队工作平台
           </Link>
           <div className="hidden md:flex space-x-6">
             <Link
@@ -48,7 +49,7 @@ export default function Navbar() {
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
-              仪表盘
+              主页
             </Link>
             {session?.user?.role === "ADMIN" && (
               <>
@@ -63,6 +64,16 @@ export default function Navbar() {
                   采购管理
                 </Link>
                 <Link
+                  href="/admin?tab=hours"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    pathname === "/admin" && tab === "hours"
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  工时申请
+                </Link>
+                <Link
                   href="/admin?tab=users"
                   className={`px-3 py-2 rounded-md text-sm font-medium ${
                     pathname === "/admin" && tab === "users"
@@ -74,18 +85,30 @@ export default function Navbar() {
                 </Link>
               </>
             )}
-            {session ? (
-              <Link
-                href="/purchases/new"
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  isActive("/purchases/new")
-                    ? "bg-indigo-100 text-indigo-700"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
-              >
-                提交采购
-              </Link>
-            ) : (
+            {session && session.user?.role !== "ADMIN" ? (
+              <>
+                <Link
+                  href="/hours"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    isActive("/hours")
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  工时申请
+                </Link>
+                <Link
+                  href="/purchases/new"
+                  className={`px-3 py-2 rounded-md text-sm font-medium ${
+                    isActive("/purchases/new")
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  提交采购
+                </Link>
+              </>
+            ) : !session ? (
               <Link
                 href="/guide"
                 className={`px-3 py-2 rounded-md text-sm font-medium ${
@@ -96,7 +119,7 @@ export default function Navbar() {
               >
                 使用说明
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
 

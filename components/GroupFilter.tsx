@@ -6,16 +6,17 @@ interface GroupFilterProps {
   groups: Array<{ group: string | null }>;
   currentGroup?: string;
   subtab: string;
+  tab?: string;
 }
 
-export default function GroupFilter({ groups, currentGroup, subtab }: GroupFilterProps) {
+export default function GroupFilter({ groups, currentGroup, subtab, tab = 'purchases' }: GroupFilterProps) {
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newGroup = e.target.value;
     const params = new URLSearchParams();
-    params.set("tab", "purchases");
-    params.set("subtab", "group");
+    params.set("tab", tab);
+    params.set("subtab", subtab);
     if (newGroup) {
       params.set("group", newGroup);
     }
