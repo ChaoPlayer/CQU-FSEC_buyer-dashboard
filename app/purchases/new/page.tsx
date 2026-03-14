@@ -315,12 +315,12 @@ export default function NewPurchasePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              物品图片（可选）
+              商品图片或非标件图纸（可选）
             </label>
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <input
                 type="file"
-                accept="image/*"
+                accept="*/*"
                 onChange={handleImageChange}
                 className="hidden"
                 id="image-upload"
@@ -339,7 +339,7 @@ export default function NewPurchasePage() {
                 ) : (
                   <div>
                     <p className="font-medium">点击选择图片</p>
-                    <p className="text-sm text-gray-500">支持 JPG, PNG, GIF</p>
+                    <p className="text-sm text-gray-500">支持任意格式（图片、CAD图纸、压缩包等）</p>
                   </div>
                 )}
               </label>

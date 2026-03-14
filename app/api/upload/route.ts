@@ -18,14 +18,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "未选择文件" }, { status: 400 });
     }
 
-    // 检查文件类型
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { message: "仅支持 JPEG、PNG、GIF 图片和 PDF 文件" },
-        { status: 400 }
-      );
-    }
 
     // 检查文件大小（限制 10MB）
     const maxSize = 10 * 1024 * 1024;

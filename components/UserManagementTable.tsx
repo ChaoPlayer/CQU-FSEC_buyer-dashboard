@@ -9,6 +9,7 @@ interface User {
   name: string | null;
   role: Role;
   maxLimit: number | null;
+  approvalLimit: number | null;
   createdAt: string;
   totalPurchases: number;
   totalAmount: number;
@@ -22,6 +23,9 @@ export default function UserManagementTable() {
   const [error, setError] = useState<string | null>(null);
   const [editingMaxLimitId, setEditingMaxLimitId] = useState<string | null>(null);
   const [tempMaxLimit, setTempMaxLimit] = useState<string>('');
+
+  const [editingApprovalLimitId, setEditingApprovalLimitId] = useState<string | null>(null);
+  const [tempApprovalLimit, setTempApprovalLimit] = useState<string>('');
 
   const fetchUsers = async () => {
     try {
@@ -113,6 +117,46 @@ export default function UserManagementTable() {
     }
   };
 
+  const handleApprovalLimitChange = async (id: string, newApprovalLimit: number | null) => {
+    console.log('handleApprovalLimitChange', { id, newApprovalLimit });
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/admin/users`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ id, approvalLimit: newApprovalLimit }),
+      });
+      console.log('响应状态:', res.status, res.ok);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('更新审批额度失败:', errorText);
+        throw new Error(`更新审批额度失败: ${res.status} ${errorText}`);
+      }
+      const updatedUser = await res.json();
+      console.log('更新成功:', updatedUser);
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === updatedUser.id
+            ? {
+                ...user,
+                ...updatedUser,
+                totalPurchases: user.totalPurchases,
+                totalAmount: user.totalAmount,
+                pendingCount: user.pendingCount,
+              }
+            : user
+        )
+      );
+    } catch (err) {
+      console.error('handleApprovalLimitChange 错误:', err);
+      setError(err instanceof Error ? err.message : "更新失败");
+    } finally {
+      setUpdatingId(null);
+      setEditingApprovalLimitId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -156,6 +200,9 @@ export default function UserManagementTable() {
               最大限额 (¥)
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              审批额度 (¥)
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               申请数
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -192,17 +239,20 @@ export default function UserManagementTable() {
                     >
                       <option value="USER">用户</option>
                       <option value="ADMIN">管理员</option>
+                      <option value="GROUP_LEADER">组长</option>
                     </select>
                   </div>
                 ) : (
                   <span
                     className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      user.role === "ADMIN"
+                      user.role === Role.ADMIN
                         ? "bg-purple-100 text-purple-800"
+                        : user.role === Role.GROUP_LEADER
+                        ? "bg-blue-100 text-blue-800"
                         : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    {user.role === "ADMIN" ? "管理员" : "用户"}
+                    {user.role === Role.ADMIN ? "管理员" : user.role === Role.GROUP_LEADER ? "组长" : "用户"}
                   </span>
                 )}
               </td>
@@ -258,6 +308,66 @@ export default function UserManagementTable() {
                       onClick={() => {
                         setEditingMaxLimitId(user.id);
                         setTempMaxLimit(user.maxLimit?.toString() ?? "");
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-900"
+                    >
+                      编辑
+                    </button>
+                  </div>
+                )}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                {editingApprovalLimitId === user.id ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={tempApprovalLimit}
+                      onChange={(e) => setTempApprovalLimit(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm w-32"
+                      placeholder="无限制"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        const numValue = tempApprovalLimit === "" ? null : parseFloat(tempApprovalLimit);
+                        handleApprovalLimitChange(user.id, numValue);
+                        setEditingApprovalLimitId(null);
+                      }}
+                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                      disabled={updatingId === user.id}
+                    >
+                      {updatingId === user.id ? "保存中..." : "保存"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingApprovalLimitId(null);
+                        setTempApprovalLimit("");
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleApprovalLimitChange(user.id, null);
+                        setEditingApprovalLimitId(null);
+                      }}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      清除
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-900">
+                      {user.approvalLimit ? `¥${user.approvalLimit.toFixed(2)}` : "无限制"}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingApprovalLimitId(user.id);
+                        setTempApprovalLimit(user.approvalLimit?.toString() ?? "");
                       }}
                       className="text-xs text-indigo-600 hover:text-indigo-900"
                     >

@@ -14,6 +14,7 @@ model User {
   password      String? // 加密存储 (仅用于凭证认证)
   role          Role           @default(USER) // USER, ADMIN
   maxLimit      Float?         @default(10000) // 用户可提交的最大金额上限，null 表示无限制
+  approvalLimit Float?         @default(0) // 审批额度
   realName      String?        // 真实姓名
   studentId     String?        // 学号
   group         Group?         // 所属组别
@@ -68,6 +69,7 @@ model Purchase {
 enum Role {
   USER
   ADMIN
+  GROUP_LEADER
 }
 
 enum Status {

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@prisma/client";
 import AdminPurchaseTable from "@/components/AdminPurchaseTable";
 import UserManagementTable from "@/components/UserManagementTable";
 import GroupFilter from "@/components/GroupFilter";
@@ -15,7 +16,17 @@ export default async function AdminPage({
   searchParams: Promise<{ tab?: string; subtab?: string; group?: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "GROUP_LEADER")) {
+    redirect("/dashboard");
+  }
+
+  // 获取当前用户详细信息（包括审批额度）
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    // @ts-ignore
+    select: { id: true, role: true, group: true, approvalLimit: true },
+  });
+  if (!currentUser) {
     redirect("/dashboard");
   }
 
@@ -32,6 +43,13 @@ export default async function AdminPage({
   if (subtab === 'group' && group) {
     whereClause.submittedBy = {
       group: group,
+    };
+  }
+  // 组长只能查看同组用户的采购
+  if (currentUser.role === ('GROUP_LEADER' as Role)) {
+    whereClause.submittedBy = {
+      ...whereClause.submittedBy,
+      group: currentUser.group,
     };
   }
 
@@ -264,7 +282,7 @@ export default async function AdminPage({
             />
           )}
 
-          <AdminPurchaseTable purchases={purchases} />
+          <AdminPurchaseTable purchases={purchases} currentUser={currentUser as any} />
         </div>
       )}
     </div>

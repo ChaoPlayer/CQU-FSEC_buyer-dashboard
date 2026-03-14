@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         group: true,
         role: true,
         maxLimit: true,
+        approvalLimit: true,
         createdAt: true,
       },
       orderBy: {
@@ -94,8 +95,8 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { id, role, maxLimit } = await req.json();
-    console.log('PUT /api/admin/users', { id, role, maxLimit });
+    const { id, role, maxLimit, approvalLimit } = await req.json();
+    console.log('PUT /api/admin/users', { id, role, maxLimit, approvalLimit });
     if (!id) {
       return NextResponse.json({ error: "缺少用户ID" }, { status: 400 });
     }
@@ -108,7 +109,7 @@ export async function PUT(req: NextRequest) {
     // 获取旧用户数据以比较限额
     const oldUser = await prisma.user.findUnique({
       where: { id },
-      select: { maxLimit: true, email: true, name: true },
+      select: { maxLimit: true, approvalLimit: true, email: true, name: true },
     });
 
     // 更新用户
@@ -117,6 +118,7 @@ export async function PUT(req: NextRequest) {
       data: {
         ...(role && { role }),
         ...(maxLimit !== undefined && { maxLimit: maxLimit === null ? null : Number(maxLimit) }),
+        ...(approvalLimit !== undefined && { approvalLimit: approvalLimit === null ? null : Number(approvalLimit) }),
       },
       select: {
         id: true,
@@ -125,6 +127,7 @@ export async function PUT(req: NextRequest) {
         role: true,
         // @ts-ignore
         maxLimit: true,
+        approvalLimit: true,
         createdAt: true,
       },
     });
