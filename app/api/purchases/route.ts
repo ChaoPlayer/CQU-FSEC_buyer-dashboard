@@ -55,6 +55,7 @@ export async function GET(request: Request) {
             id: true,
             email: true,
             name: true,
+            realName: true,
           },
         },
       },
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
             id: true,
             email: true,
             name: true,
+            realName: true,
           },
         },
       },
@@ -147,7 +149,7 @@ export async function POST(request: Request) {
         userId: admin.id,
         type: "new_purchase",
         title: `新的采购申请：${purchase.itemName}`,
-        content: `用户 ${purchase.submittedBy?.name || purchase.submittedBy?.email || '未知'} 提交了新的采购申请，金额 ¥${purchase.amount.toFixed(2)}，请及时审批。`,
+        content: `用户 ${(purchase as any).submittedBy?.realName || (purchase as any).submittedBy?.email || '未知'} 提交了新的采购申请，金额 ¥${purchase.amount.toFixed(2)}，请及时审批。`,
         purchaseId: purchase.id,
       });
     }

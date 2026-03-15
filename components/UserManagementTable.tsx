@@ -6,7 +6,7 @@ import { Role } from "@prisma/client";
 interface User {
   id: string;
   email: string;
-  name: string | null;
+  realName: string | null;
   role: Role;
   maxLimit: number | null;
   approvalLimit: number | null;
@@ -226,7 +226,7 @@ export default function UserManagementTable() {
                 {user.email}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {user.name || "—"}
+                {user.realName || "—"}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 {updatingId === user.id ? (

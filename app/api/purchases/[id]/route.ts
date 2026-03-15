@@ -24,7 +24,7 @@ export async function GET(
           select: {
             id: true,
             email: true,
-            name: true,
+            realName: true,
           },
         },
         statusHistory: {
@@ -111,7 +111,7 @@ export async function PUT(
           select: {
             id: true,
             email: true,
-            name: true,
+            realName: true,
           },
         },
       },

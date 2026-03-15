@@ -69,8 +69,8 @@ export default async function ProfilePage({
                   <p className="mt-1 text-lg text-gray-900">{user.email}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">昵称</label>
-                  <p className="mt-1 text-lg text-gray-900">{user.name || "未设置"}</p>
+                  <label className="block text-sm font-medium text-gray-500">真实姓名</label>
+                  <p className="mt-1 text-lg text-gray-900">{user.realName || "未设置"}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">角色</label>

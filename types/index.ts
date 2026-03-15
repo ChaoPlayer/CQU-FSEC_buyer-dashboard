@@ -5,6 +5,7 @@ export type PurchaseWithUser = Purchase & {
     id: string;
     email: string;
     name: string | null;
+    realName: string | null;
     group: string | null;
   };
   statusHistory?: Array<{

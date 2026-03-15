@@ -134,7 +134,7 @@ export default function AdminPurchaseTable({ purchases, currentUser }: AdminPurc
     }
     const selectedPurchases = localPurchases.filter(p => selectedIds.includes(p.id));
     const data = selectedPurchases.map(p => ({
-      "申请人": p.submittedBy?.name || p.submittedBy?.email || "未知",
+      "申请人": p.submittedBy?.realName || p.submittedBy?.name || p.submittedBy?.email || "未知",
       "组别": p.submittedBy?.group || "未分组",
       "物品名称": p.itemName,
       "金额(元)": p.amount,
@@ -267,7 +267,7 @@ export default function AdminPurchaseTable({ purchases, currentUser }: AdminPurc
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
-                    {purchase.submittedBy?.name || purchase.submittedBy?.email}
+                    {purchase.submittedBy?.realName || purchase.submittedBy?.name || purchase.submittedBy?.email || '未知用户'}
                   </div>
                   <div className="text-xs text-gray-500">
                     {purchase.submittedBy?.email}

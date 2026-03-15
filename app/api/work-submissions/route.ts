@@ -36,6 +36,7 @@ export async function GET(request: Request) {
             id: true,
             email: true,
             name: true,
+            realName: true,
             group: true,
           },
         },

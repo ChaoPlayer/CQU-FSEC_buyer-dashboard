@@ -18,6 +18,7 @@ interface WorkSubmissionWithUser {
     id: string;
     email: string;
     name: string | null;
+    realName: string | null;
     group: string | null;
   };
 }
@@ -244,7 +245,7 @@ export default function AdminWorkSubmissionTable({ submissions }: AdminWorkSubmi
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-gray-900">
-                  {submission.user.name || submission.user.email}
+                  {submission.user.realName || submission.user.email || '未知用户'}
                 </div>
                 <div className="text-xs text-gray-500">
                   {submission.user.email}
@@ -362,7 +363,7 @@ export default function AdminWorkSubmissionTable({ submissions }: AdminWorkSubmi
                       <div className="space-y-4">
                         <div>
                           <h3 className="font-medium text-gray-700">提交人</h3>
-                          <p>{selectedSubmission.user.name || selectedSubmission.user.email}</p>
+                          <p>{selectedSubmission.user.realName || selectedSubmission.user.email || '未知用户'}</p>
                         </div>
                         <div>
                           <h3 className="font-medium text-gray-700">提交时间</h3>

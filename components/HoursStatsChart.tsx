@@ -11,7 +11,7 @@ interface UserHoursData {
   userId: string;
   totalHours: number;
   user?: {
-    name: string | null;
+    realName: string | null;
     email: string;
     group: string | null;
   };
@@ -112,7 +112,7 @@ export default function HoursStatsChart({
                 {userData.slice(0, 10).map((item, index) => (
                   <tr key={item.userId}>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{item.user?.name || '-'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{item.user?.realName || '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{item.user?.email}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{item.user?.group || '未分组'}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">{item.totalHours.toFixed(1)} 小时</td>

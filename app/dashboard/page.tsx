@@ -72,7 +72,7 @@ export default async function DashboardPage() {
       .map(g => g.userId);
     const topActiveUsers = await prisma.user.findMany({
       where: { id: { in: topUserIds } },
-      select: { id: true, name: true, email: true },
+      select: { id: true, name: true, realName: true, email: true },
     });
 
     return (
@@ -116,7 +116,7 @@ export default async function DashboardPage() {
                 <ul className="text-sm text-gray-600 space-y-1">
                   {topActiveUsers.map(user => (
                     <li key={user.id} className="flex items-center">
-                      <span className="truncate">{user.name || user.email}</span>
+                      <span className="truncate">{user.realName || user.email}</span>
                     </li>
                   ))}
                 </ul>

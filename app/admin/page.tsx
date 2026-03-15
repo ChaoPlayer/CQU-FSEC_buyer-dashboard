@@ -64,6 +64,7 @@ export default async function AdminPage({
           id: true,
           email: true,
           name: true,
+          realName: true,
           group: true,
         },
       },
@@ -117,7 +118,7 @@ export default async function AdminPage({
   const userIds2 = userHours.map(uh => uh.userId);
   const usersDetails = await prisma.user.findMany({
     where: { id: { in: userIds2 } },
-    select: { id: true, email: true, name: true, group: true },
+    select: { id: true, email: true, name: true, realName: true, group: true },
   });
   const userHoursData = userHours.map(uh => ({
     userId: uh.userId,
@@ -159,6 +160,7 @@ export default async function AdminPage({
           id: true,
           email: true,
           name: true,
+          realName: true,
           group: true,
         },
       },

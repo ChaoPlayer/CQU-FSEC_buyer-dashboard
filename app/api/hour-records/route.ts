@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       const userIds = records.map(r => r.userId);
       const users = await prisma.user.findMany({
         where: { id: { in: userIds } },
-        select: { id: true, email: true, name: true, group: true },
+        select: { id: true, email: true, realName: true, group: true },
       });
       const result = records.map(record => ({
         userId: record.userId,
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
           select: {
             id: true,
             email: true,
-            name: true,
+            realName: true,
             group: true,
           },
         },

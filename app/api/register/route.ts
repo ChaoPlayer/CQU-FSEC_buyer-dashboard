@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, name, realName, studentId, group } = await request.json();
+    const { email, password, realName, studentId, group } = await request.json();
 
     if (!email || !password || !realName || !studentId || !group) {
       return NextResponse.json(
@@ -42,7 +42,6 @@ export async function POST(request: Request) {
       data: {
         email,
         password: hashedPassword,
-        name: name || "",
         realName,
         studentId,
         group,

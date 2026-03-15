@@ -67,7 +67,7 @@ export async function notifyPurchaseStatusChange(
         userId: admin.id,
         type: "withdrawal_requested",
         title: `新的撤回申请：${purchase.itemName}`,
-        content: `用户 ${purchase.submittedBy.name || purchase.submittedBy.email} 提交了采购撤回申请，请及时处理。`,
+        content: `用户 ${purchase.submittedBy.realName || purchase.submittedBy.email} 提交了采购撤回申请，请及时处理。`,
         purchaseId: purchase.id,
       });
     }
@@ -89,7 +89,7 @@ export async function notifyNewWorkSubmission(
       userId: admin.id,
       type: "new_work_submission",
       title: `新的工作申请：${submission.title}`,
-      content: `用户 ${submission.user.name || submission.user.email} 提交了工作申请 "${submission.title}"，请及时审批。`,
+      content: `用户 ${submission.user.realName || submission.user.email} 提交了工作申请 "${submission.title}"，请及时审批。`,
     });
   }
 }
