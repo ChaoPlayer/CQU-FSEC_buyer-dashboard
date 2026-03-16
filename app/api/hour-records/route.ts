@@ -17,19 +17,39 @@ export async function GET(request: Request) {
     const type = searchParams.get("type") as HourType | null;
     const groupBy = searchParams.get("groupBy"); // user, date, type
 
-    // 权限：管理员可以查看所有用户的记录，普通用户只能查看自己的
+    // 权限：管理员可以查看所有用户的记录，组长可以查看本组记录，普通用户只能查看自己的
     const where: any = {};
-    if (session.user.role !== "ADMIN") {
+    if (session.user.role === "ADMIN") {
+      // 管理员可以看到所有记录，除非指定了 userId
+      if (userId) {
+        where.userId = userId;
+      }
+    } else if (session.user.role === "GROUP_LEADER") {
+      // 组长可以看到本组所有成员的记录
+      const leader = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { group: true }
+      });
+      const group = leader?.group;
+      let userIds: string[] = [session.user.id]; // 至少包含自己
+      if (group) {
+        const sameGroupUsers = await prisma.user.findMany({
+          where: { group },
+          select: { id: true }
+        });
+        userIds = sameGroupUsers.map(u => u.id);
+      }
+      where.userId = { in: userIds };
+    } else {
+      // 普通用户只能看到自己的记录
       where.userId = session.user.id;
-    } else if (userId) {
-      where.userId = userId;
     }
     if (type) {
       where.type = type;
     }
 
-    // 如果按用户分组（用于管理员统计）
-    if (groupBy === "user" && session.user.role === "ADMIN") {
+    // 如果按用户分组（用于管理员或组长统计）
+    if (groupBy === "user" && (session.user.role === "ADMIN" || session.user.role === "GROUP_LEADER")) {
       const records = await prisma.hourRecord.groupBy({
         by: ["userId"],
         where,
@@ -57,7 +77,7 @@ export async function GET(request: Request) {
     }
 
     // 如果按组别分组（用于柱状图）
-    if (groupBy === "group" && session.user.role === "ADMIN") {
+    if (groupBy === "group" && (session.user.role === "ADMIN" || session.user.role === "GROUP_LEADER")) {
       // 先获取每个用户的工时总和，再按组别聚合
       const userHours = await prisma.hourRecord.groupBy({
         by: ["userId"],

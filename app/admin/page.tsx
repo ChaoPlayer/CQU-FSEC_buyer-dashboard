@@ -31,9 +31,13 @@ export default async function AdminPage({
   }
 
   const params = await searchParams;
-  const tab = params.tab || 'purchases';
+  let tab = params.tab || 'purchases';
   const group = params.group;
   let subtab = params.subtab;
+  // 组长不能访问用户管理标签页，重定向到采购管理
+  if (currentUser.role === 'GROUP_LEADER' && tab === 'users') {
+    redirect('/admin?tab=purchases');
+  }
   if (!subtab) {
     subtab = tab === 'hours' ? 'stats' : 'overview';
   }
@@ -77,9 +81,13 @@ export default async function AdminPage({
   });
 
   // 获取各组总工时（用于横置柱状图）
+  const groupHoursWhere: any = {};
+  if (currentUser.role === 'GROUP_LEADER' && currentUser.group) {
+    groupHoursWhere.user = { group: currentUser.group };
+  }
   const groupHours = await prisma.hourRecord.groupBy({
     by: ['userId'],
-    where: {},
+    where: groupHoursWhere,
     _sum: {
       hours: true,
     },
@@ -102,9 +110,13 @@ export default async function AdminPage({
   })).sort((a, b) => b.totalHours - a.totalHours);
 
   // 获取队员工时排名
+  const userHoursWhere: any = {};
+  if (currentUser.role === 'GROUP_LEADER' && currentUser.group) {
+    userHoursWhere.user = { group: currentUser.group };
+  }
   const userHours = await prisma.hourRecord.groupBy({
     by: ['userId'],
-    where: {},
+    where: userHoursWhere,
     _sum: {
       hours: true,
     },
@@ -144,7 +156,11 @@ export default async function AdminPage({
 
   // 获取工作申请列表（用于审批子选项卡）
   const whereClauseForSubmissions: any = {};
-  if (group) {
+  if (currentUser.role === 'GROUP_LEADER' && currentUser.group) {
+    whereClauseForSubmissions.user = {
+      group: currentUser.group,
+    };
+  } else if (group) {
     whereClauseForSubmissions.user = {
       group: group,
     };
@@ -214,12 +230,14 @@ export default async function AdminPage({
                 >
                   审批
                 </Link>
-                <Link
-                  href="/admin?tab=hours&subtab=group"
-                  className={`px-3 py-1 text-sm rounded ${subtab === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                >
-                  分组管理
-                </Link>
+                {currentUser.role !== 'GROUP_LEADER' && (
+                  <Link
+                    href="/admin?tab=hours&subtab=group"
+                    className={`px-3 py-1 text-sm rounded ${subtab === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >
+                    分组管理
+                  </Link>
+                )}
               </div>
             </div>
             <div className="text-sm text-gray-500">
@@ -235,6 +253,7 @@ export default async function AdminPage({
                 topUserHours={topUserHours}
                 pendingCount={pendingSubmissionsCount}
                 warning=""
+                currentUserRole={currentUser.role}
               />
             ) : (
               <div>
@@ -263,12 +282,14 @@ export default async function AdminPage({
                 >
                   总览
                 </Link>
-                <Link
-                  href="/admin?tab=purchases&subtab=group"
-                  className={`px-3 py-1 text-sm rounded ${subtab === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                >
-                  分组管理
-                </Link>
+                {currentUser.role !== 'GROUP_LEADER' && (
+                  <Link
+                    href="/admin?tab=purchases&subtab=group"
+                    className={`px-3 py-1 text-sm rounded ${subtab === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >
+                    分组管理
+                  </Link>
+                )}
               </div>
             </div>
             <div className="text-sm text-gray-500">

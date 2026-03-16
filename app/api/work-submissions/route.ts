@@ -17,12 +17,32 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId");
     const status = searchParams.get("status") as WorkSubmissionStatus | null;
 
-    // 管理员可以查看所有提交，普通用户只能查看自己的
+    // 根据角色构建筛选条件
     const where: any = {};
-    if (session.user.role !== "ADMIN") {
+    if (session.user.role === "ADMIN") {
+      // 管理员可以看到所有提交，除非指定了 userId
+      if (userId) {
+        where.userId = userId;
+      }
+    } else if (session.user.role === "GROUP_LEADER") {
+      // 组长可以看到本组所有成员的提交
+      const leader = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { group: true }
+      });
+      const group = leader?.group;
+      let userIds: string[] = [session.user.id]; // 至少包含自己
+      if (group) {
+        const sameGroupUsers = await prisma.user.findMany({
+          where: { group },
+          select: { id: true }
+        });
+        userIds = sameGroupUsers.map(u => u.id);
+      }
+      where.userId = { in: userIds };
+    } else {
+      // 普通用户只能看到自己的提交
       where.userId = session.user.id;
-    } else if (userId) {
-      where.userId = userId;
     }
     if (status) {
       where.status = status;

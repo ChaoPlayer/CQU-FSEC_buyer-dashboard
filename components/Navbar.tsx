@@ -51,7 +51,7 @@ export default function Navbar() {
             >
               主页
             </Link>
-            {session?.user?.role === "ADMIN" && (
+            {(session?.user?.role === "ADMIN" || session?.user?.role === "GROUP_LEADER") && (
               <>
                 <Link
                   href="/admin?tab=purchases"
@@ -71,19 +71,21 @@ export default function Navbar() {
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  工时申请
-                </Link>
-                <Link
-                  href="/admin?tab=users"
-                  className={`px-3 py-2 rounded-md text-sm font-medium ${
-                    pathname === "/admin" && tab === "users"
-                      ? "bg-indigo-100 text-indigo-700"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  用户管理
+                  工时管理
                 </Link>
               </>
+            )}
+            {session?.user?.role === "ADMIN" && (
+              <Link
+                href="/admin?tab=users"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  pathname === "/admin" && tab === "users"
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                用户管理
+              </Link>
             )}
             {session && session.user?.role !== "ADMIN" ? (
               <>
@@ -133,7 +135,7 @@ export default function Navbar() {
                   {session.user?.name || session.user?.email}
                 </span>
                 <span className="text-xs text-gray-500 capitalize">
-                  {session.user?.role === "ADMIN" ? "管理员" : "用户"}
+                  {session.user?.role === "ADMIN" ? "管理员" : session.user?.role === "GROUP_LEADER" ? "组长" : "用户"}
                 </span>
               </div>
               <NotificationBell />

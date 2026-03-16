@@ -24,6 +24,7 @@ interface HoursStatsChartProps {
   topUserHours?: number;
   pendingCount?: number;
   warning?: string;
+  currentUserRole?: string;
 }
 
 export default function HoursStatsChart({
@@ -33,6 +34,7 @@ export default function HoursStatsChart({
   topUserHours = 0,
   pendingCount = 0,
   warning = '',
+  currentUserRole = '',
 }: HoursStatsChartProps) {
   // 若未提供数据，显示空状态
   if (groupData.length === 0 && userData.length === 0) {
@@ -45,16 +47,19 @@ export default function HoursStatsChart({
 
   // 准备横置柱状图数据（组别排名）
   const sortedGroupData = [...groupData].sort((a, b) => b.totalHours - a.totalHours).slice(0, 10);
+  const isGroupLeader = currentUserRole === 'GROUP_LEADER';
 
   return (
     <div className="space-y-8">
       {/* 核心数据卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="text-lg font-medium text-gray-700">各组总工时</h3>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{totalGroupHours.toFixed(1)} 小时</p>
-          <p className="text-sm text-gray-500">各组累计工时总和</p>
-        </div>
+      <div className={`grid gap-6 ${isGroupLeader ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
+        {!isGroupLeader && (
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-lg font-medium text-gray-700">各组总工时</h3>
+            <p className="mt-2 text-3xl font-bold text-blue-600">{totalGroupHours.toFixed(1)} 小时</p>
+            <p className="text-sm text-gray-500">各组累计工时总和</p>
+          </div>
+        )}
         <div className="bg-white p-6 rounded-xl shadow">
           <h3 className="text-lg font-medium text-gray-700">队员工时排行榜</h3>
           <p className="mt-2 text-3xl font-bold text-green-600">{topUserHours.toFixed(1)} 小时</p>
@@ -72,31 +77,35 @@ export default function HoursStatsChart({
         </div>
       </div>
 
-      {/* 各组总工时横置柱状图 */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">各组总工时排名</h3>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              layout="vertical"
-              data={sortedGroupData}
-              margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis type="category" dataKey="group" />
-              <Tooltip formatter={(value) => [`${value} 小时`, '工时']} />
-              <Legend />
-              <Bar dataKey="totalHours" name="工时数" fill="#4f46e5" />
-            </BarChart>
-          </ResponsiveContainer>
+      {/* 各组总工时横置柱状图（仅当有多个组且不是组长时显示） */}
+      {!isGroupLeader && sortedGroupData.length > 1 && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">各组总工时排名</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                layout="vertical"
+                data={sortedGroupData}
+                margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="group" />
+                <Tooltip formatter={(value) => [`${value} 小时`, '工时']} />
+                <Legend />
+                <Bar dataKey="totalHours" name="工时数" fill="#4f46e5" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 队员工时排名表 */}
       {userData.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">队员工时排名</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            {sortedGroupData.length <= 1 || isGroupLeader ? "本组队员工时排名" : "队员工时排名"}
+          </h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

@@ -72,15 +72,35 @@ export async function PUT(
       return NextResponse.json({ message: "采购记录不存在" }, { status: 404 });
     }
 
-    // 只有管理员可以更新采购状态，用户只能更新自己的采购（某些字段）
+    // 只有管理员和组长可以更新采购状态，用户只能更新自己的采购（某些字段）
     const body = await request.json();
     const { status, note, rejectionReason, materialCategory, hasInvoice, isAdvancedPayment, advancerName } = body;
 
-    // 如果用户是管理员，可以更新状态；否则只能更新备注
+    // 获取组长组别和提交者组别（如果需要）
+    let leaderGroup: string | null = null;
+    let submitterGroup: string | null = null;
+    if (session.user.role === "GROUP_LEADER") {
+      // 获取组长组别
+      const leader = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { group: true }
+      });
+      leaderGroup = leader?.group ?? null;
+      // 获取提交者组别
+      const submitter = await prisma.user.findUnique({
+        where: { id: purchase.userId },
+        select: { group: true }
+      });
+      submitterGroup = submitter?.group ?? null;
+    }
+
+    // 如果用户是管理员或组长，可以更新状态；否则只能更新备注
     const data: any = {};
-    if (session.user.role === "ADMIN") {
+    const isAdmin = session.user.role === "ADMIN";
+    const isGroupLeader = session.user.role === "GROUP_LEADER";
+    if (isAdmin || (isGroupLeader && leaderGroup === submitterGroup && leaderGroup !== null)) {
       if (status) data.status = status;
-      // 管理员可以设置拒绝理由（仅当状态为 REJECTED 或明确提供时）
+      // 管理员或组长可以设置拒绝理由（仅当状态为 REJECTED 或明确提供时）
       if (rejectionReason !== undefined) {
         data.rejectionReason = rejectionReason;
       }
@@ -96,9 +116,13 @@ export async function PUT(
     if (isAdvancedPayment !== undefined) data.isAdvancedPayment = isAdvancedPayment;
     if (advancerName !== undefined) data.advancerName = advancerName;
 
-    // 确保用户只能更新自己的采购（除非是管理员）
-    if (session.user.role !== "ADMIN" && purchase.userId !== session.user.id) {
+    // 确保用户只能更新自己的采购（除非是管理员或组长）
+    if (!isAdmin && !isGroupLeader && purchase.userId !== session.user.id) {
       return NextResponse.json({ message: "无权修改" }, { status: 403 });
+    }
+    // 组长只能更新同组成员的采购
+    if (isGroupLeader && (leaderGroup !== submitterGroup || leaderGroup === null)) {
+      return NextResponse.json({ message: "只能审批本组成员的申请" }, { status: 403 });
     }
 
     const oldStatus = purchase.status;

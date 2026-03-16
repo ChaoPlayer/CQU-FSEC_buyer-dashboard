@@ -36,9 +36,23 @@ export async function GET(
       return NextResponse.json({ message: "工作提交不存在" }, { status: 404 });
     }
 
-    // 权限检查：用户只能查看自己的提交，管理员可以查看所有
-    if (session.user.role !== "ADMIN" && submission.userId !== session.user.id) {
+    // 权限检查：用户只能查看自己的提交，管理员可以查看所有，组长可以查看同组成员的提交
+    const isAdmin = session.user.role === "ADMIN";
+    const isGroupLeader = session.user.role === "GROUP_LEADER";
+    if (!isAdmin && !isGroupLeader && submission.userId !== session.user.id) {
       return NextResponse.json({ message: "无权访问" }, { status: 403 });
+    }
+    // 组长只能查看同组成员的提交
+    if (isGroupLeader) {
+      // 获取组长组别
+      const leader = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { group: true }
+      });
+      const leaderGroup = leader?.group ?? null;
+      if (leaderGroup !== submission.user.group || leaderGroup === null) {
+        return NextResponse.json({ message: "只能查看本组成员的提交" }, { status: 403 });
+      }
     }
 
     return NextResponse.json(submission);
@@ -59,8 +73,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ message: "需要管理员权限" }, { status: 403 });
+    if (!session) {
+      return NextResponse.json({ message: "未授权" }, { status: 401 });
+    }
+    const isAdmin = session.user.role === "ADMIN";
+    const isGroupLeader = session.user.role === "GROUP_LEADER";
+    if (!isAdmin && !isGroupLeader) {
+      return NextResponse.json({ message: "需要管理员或组长权限" }, { status: 403 });
     }
 
     const submission = await prisma.workSubmission.findUnique({
@@ -75,7 +94,20 @@ export async function PATCH(
     const body = await request.json();
     const { status, approvedHours, rejectionReason } = body;
 
-    // 只有管理员可以更新状态和批准工时
+    // 组长只能审批同组成员的提交
+    if (isGroupLeader) {
+      // 获取组长组别
+      const leader = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { group: true }
+      });
+      const leaderGroup = leader?.group ?? null;
+      if (leaderGroup !== submission.user.group || leaderGroup === null) {
+        return NextResponse.json({ message: "只能审批本组成员的提交" }, { status: 403 });
+      }
+    }
+
+    // 只有管理员或组长可以更新状态和批准工时
     const data: any = {};
     if (status) {
       if (!Object.values(WorkSubmissionStatus).includes(status)) {

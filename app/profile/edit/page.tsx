@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Group } from "@prisma/client";
+import { Group, Role } from "@prisma/client";
 
 type UserProfile = {
   id: string;
@@ -47,26 +47,34 @@ export default function EditProfilePage() {
 
   // 初始化时获取当前用户角色和资料
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
-        const url = userIdParam
-          ? `/api/profile?userId=${userIdParam}`
-          : "/api/profile";
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error("无法加载用户资料");
+        // 1. 无论如何，先获取当前登录用户自己的信息，用来判断 isAdmin 权限
+        const currentUserRes = await fetch("/api/profile");
+        if (!currentUserRes.ok) throw new Error("无法验证当前用户权限");
+        const currentUserData = await currentUserRes.json();
+        
+        setIsAdmin(currentUserData.role === "ADMIN");
+        setCurrentUserRole(currentUserData.role);
+
+        // 2. 根据是否存在 userIdParam，决定表单要渲染谁的数据
+        if (userIdParam) {
+          // 管理员在编辑别人
+          const targetUserRes = await fetch(`/api/profile?userId=${userIdParam}`);
+          if (!targetUserRes.ok) throw new Error("无法加载目标用户资料");
+          const targetUserData = await targetUserRes.json();
+          setProfile(targetUserData);
+        } else {
+          // 用户在编辑自己
+          setProfile(currentUserData);
         }
-        const data = await res.json();
-        setProfile(data);
-        setCurrentUserRole(data.role);
-        setIsAdmin(data.role === "ADMIN");
       } catch (err) {
         setError(err instanceof Error ? err.message : "加载失败");
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchData();
   }, [userIdParam]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -103,7 +111,7 @@ export default function EditProfilePage() {
       updateData.studentId = profile.studentId;
       updateData.group = profile.group;
       updateData.maxLimit = profile.maxLimit;
-      // 注意：角色字段暂不包含，因为需要额外 UI
+      updateData.role = profile.role;
     } else {
       // 普通用户只能更新组别
       updateData.group = profile.group;
@@ -191,11 +199,31 @@ export default function EditProfilePage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500">角色</label>
-                  <p className="mt-1">
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${profile?.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"}`}>
-                      {profile?.role === "ADMIN" ? "管理员" : "用户"}
-                    </span>
-                  </p>
+                  {isAdmin ? (
+                    <select
+                      id="role"
+                      name="role"
+                      value={profile?.role || "USER"}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base h-10 px-3"
+                    >
+                      <option value="USER">用户</option>
+                      <option value="GROUP_LEADER">组长</option>
+                      <option value="ADMIN">管理员</option>
+                    </select>
+                  ) : (
+                    <p className="mt-1">
+                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                        profile?.role === "ADMIN"
+                          ? "bg-purple-100 text-purple-800"
+                          : profile?.role === "GROUP_LEADER"
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {profile?.role === "ADMIN" ? "管理员" : profile?.role === "GROUP_LEADER" ? "组长" : "用户"}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

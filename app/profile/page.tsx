@@ -75,8 +75,8 @@ export default async function ProfilePage({
                 <div>
                   <label className="block text-sm font-medium text-gray-500">角色</label>
                   <p className="mt-1">
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${user.role === "ADMIN" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"}`}>
-                      {user.role === "ADMIN" ? "管理员" : "用户"}
+                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${user.role === "ADMIN" ? "bg-purple-100 text-purple-800" : user.role === "GROUP_LEADER" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}`}>
+                      {user.role === "ADMIN" ? "管理员" : user.role === "GROUP_LEADER" ? "组长" : "用户"}
                     </span>
                   </p>
                 </div>
