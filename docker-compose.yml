@@ -1,21 +1,29 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: procurement
+  procurement-web:
+    image: procurement-web:latest
+    container_name: procurement-web
     ports:
-      - "5432:5432"
+      - "3000:3000"
+    restart: always
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      # 持久化数据库文件（SQLite）及 Prisma 配置
+      - ./prisma:/app/prisma
+    env_file:
+      - .env
 
-volumes:
-  postgres_data:
+  prisma-studio:
+    image: procurement-web:latest
+    container_name: prisma-studio
+    ports:
+      - "5555:5555"
+    restart: always
+    volumes:
+      - ./prisma:/app/prisma
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0      # 加上这行环境变量，让它允许局域网外部访问
+    # 【最关键的一步】删掉不被识别的 --hostname，换成官方提示的 --browser none
+    command: prisma studio --port 5555 --browser none --url "file:/app/prisma/dev.db"
