@@ -80,6 +80,34 @@ export default async function AdminPage({
     where: { status: 'PENDING' },
   });
 
+  // 获取今日出勤人数与平均时长
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const todayAttendanceRecords = await prisma.hourRecord.findMany({
+    where: {
+      type: 'ATTENDANCE',
+      date: {
+        gte: today,
+        lt: tomorrow,
+      },
+    },
+    select: {
+      userId: true,
+      hours: true,
+    },
+  });
+
+  // 计算不重复出勤人数
+  const uniqueUserIds = new Set(todayAttendanceRecords.map(r => r.userId));
+  const todayAttendanceCount = uniqueUserIds.size;
+
+  // 计算总工时（用于平均时长）
+  const totalHours = todayAttendanceRecords.reduce((sum, r) => sum + r.hours, 0);
+  const todayAverageHours = uniqueUserIds.size > 0 ? totalHours / uniqueUserIds.size : 0;
+
   // 获取各组总工时（用于横置柱状图）
   const groupHoursWhere: any = {};
   if (currentUser.role === 'GROUP_LEADER' && currentUser.group) {
@@ -253,6 +281,8 @@ export default async function AdminPage({
                 topUserHours={topUserHours}
                 pendingCount={pendingSubmissionsCount}
                 warning=""
+                todayAttendanceCount={todayAttendanceCount}
+                todayAverageHours={todayAverageHours}
                 currentUserRole={currentUser.role}
               />
             ) : (

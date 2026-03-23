@@ -64,6 +64,37 @@ export default async function DashboardPage() {
     ]);
 
     const totalAmount = totalAmountResult._sum.amount || 0;
+
+    // 计算今日北京时间范围
+    const now = new Date();
+    const beijingOffset = 8 * 60 * 60 * 1000;
+    const beijingTime = new Date(now.getTime() + beijingOffset);
+    const todayStart = new Date(beijingTime.getFullYear(), beijingTime.getMonth(), beijingTime.getDate());
+    const todayStartUTC = new Date(todayStart.getTime() - beijingOffset);
+    const todayEndUTC = new Date(todayStartUTC.getTime() + 24 * 60 * 60 * 1000);
+
+    // 考勤数据查询
+    const todayAttendanceCount = await prisma.attendanceSummary.count({
+      where: {
+        date: {
+          gte: todayStartUTC,
+          lt: todayEndUTC,
+        },
+      },
+    });
+    const todayAverageResult = await prisma.attendanceSummary.aggregate({
+      where: {
+        date: {
+          gte: todayStartUTC,
+          lt: todayEndUTC,
+        },
+      },
+      _avg: {
+        totalHours: true,
+      },
+    });
+    const todayAverageHours = todayAverageResult._avg.totalHours || 0;
+
     const activeUserCount = activeUserGroups.length;
     // 获取前三名活跃用户
     const topUserIds = activeUserGroups
@@ -88,7 +119,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
           <div className="bg-white p-6 rounded-xl shadow">
             <h3 className="text-lg font-medium text-gray-700">待审批申请</h3>
             <p className="mt-2 text-3xl font-bold text-yellow-600">{pendingPurchases}</p>
@@ -122,6 +153,16 @@ export default async function DashboardPage() {
                 </ul>
               </div>
             )}
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-lg font-medium text-gray-700">今日出勤人数</h3>
+            <p className="mt-2 text-3xl font-bold text-purple-600">{todayAttendanceCount}</p>
+            <p className="text-sm text-gray-500">今日已打卡队员</p>
+          </div>
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-lg font-medium text-gray-700">出勤平均时长</h3>
+            <p className="mt-2 text-3xl font-bold text-cyan-600">{todayAverageHours.toFixed(1)}<span className="text-lg font-normal text-gray-500"> 小时</span></p>
+            <p className="text-sm text-gray-500">今日出勤队员平均工时</p>
           </div>
         </div>
 

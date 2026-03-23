@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { UsersIcon } from '@heroicons/react/24/outline';
 
 interface GroupHoursData {
   group: string;
@@ -25,6 +26,8 @@ interface HoursStatsChartProps {
   topUserHours?: number;
   pendingCount?: number;
   warning?: string;
+  todayAttendanceCount?: number;
+  todayAverageHours?: number;
   currentUserRole?: string;
 }
 
@@ -35,6 +38,8 @@ export default function HoursStatsChart({
   topUserHours = 0,
   pendingCount = 0,
   warning = '',
+  todayAttendanceCount = 0,
+  todayAverageHours = 0,
   currentUserRole = '',
 }: HoursStatsChartProps) {
   // 弹窗状态
@@ -116,9 +121,18 @@ export default function HoursStatsChart({
           </div>
         )}
         <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="text-lg font-medium text-gray-700">队员平均工时</h3>
-          <p className="mt-2 text-3xl font-bold text-green-600">{averageUserHours.toFixed(1)} 小时</p>
-          <p className="text-sm text-gray-500">全队平均工时</p>
+          <div className="flex items-center gap-2 mb-2">
+            <UsersIcon className="h-5 w-5 text-gray-500" />
+            <h3 className="text-lg font-medium text-gray-700">今日出勤人数</h3>
+          </div>
+          <div className="flex flex-col">
+            <p className="mt-2 text-3xl font-bold text-green-600">
+              {todayAttendanceCount} 人
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              出勤队员平均时长：{todayAverageHours.toFixed(1)} 小时
+            </p>
+          </div>
         </div>
         <div className="bg-white p-6 rounded-xl shadow">
           <h3 className="text-lg font-medium text-gray-700">待审批申请</h3>

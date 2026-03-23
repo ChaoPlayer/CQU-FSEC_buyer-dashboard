@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   procurement-web:
-    image: procurement-web:latest
+    image: procurement-web:v1.3
     container_name: procurement-web
     ports:
       - "3000:3000"
@@ -10,11 +10,13 @@ services:
     volumes:
       # 持久化数据库文件（SQLite）及 Prisma 配置
       - ./prisma:/app/prisma
+      # 挂载考勤数据 CSV 文件（宿主机 NAS 路径 → 容器内 /app/data）
+      - /volume1/CQU_data:/app/data
     env_file:
       - .env
 
   prisma-studio:
-    image: procurement-web:latest
+    image: procurement-web:v1.3
     container_name: prisma-studio
     ports:
       - "5555:5555"

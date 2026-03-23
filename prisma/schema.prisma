@@ -150,3 +150,18 @@ model HourRecord {
   @@index([type])
   @@index([date])
 }
+
+model AttendanceSummary {
+  id          String   @id @default(cuid())
+  employeeNo  String   // 工号
+  date        DateTime // 考勤日期（仅日期部分）
+  firstPunch  DateTime? // 首次打卡时间
+  lastPunch   DateTime? // 末次打卡时间
+  totalHours  Float?    // 总工时（小时）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeNo, date])
+  @@index([employeeNo])
+  @@index([date])
+}
