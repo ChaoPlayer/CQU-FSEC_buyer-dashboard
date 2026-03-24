@@ -8,6 +8,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@prisma/client": "6.19.2",
+    "prisma": "6.19.2",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -22,12 +24,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@prisma/client": "^6.19.2",
+
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "prisma": "^6.19.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

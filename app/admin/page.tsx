@@ -10,6 +10,9 @@ import GroupFilter from "@/components/GroupFilter";
 import HoursStatsChart from "@/components/HoursStatsChart";
 import AdminWorkSubmissionTable from "@/components/AdminWorkSubmissionTable";
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export default async function AdminPage({
   searchParams,
 }: {

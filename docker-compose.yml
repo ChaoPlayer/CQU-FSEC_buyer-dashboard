@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   procurement-web:
-    image: procurement-web:v1.3
+    image: procurement-web:v2.0
     container_name: procurement-web
     ports:
       - "3000:3000"
@@ -14,9 +14,11 @@ services:
       - /volume1/CQU_data:/app/data
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=file:/app/prisma/dev.db
 
   prisma-studio:
-    image: procurement-web:v1.3
+    image: procurement-web:v2.0
     container_name: prisma-studio
     ports:
       - "5555:5555"
@@ -27,5 +29,10 @@ services:
       - .env
     environment:
       - HOST=0.0.0.0      # 加上这行环境变量，让它允许局域网外部访问
-    # 【最关键的一步】删掉不被识别的 --hostname，换成官方提示的 --browser none
-    command: prisma studio --port 5555 --browser none --url "file:/app/prisma/dev.db"
+      - DATABASE_URL=file:/app/prisma/dev.db
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      - PRISMA_TELEMETRY_OPT_OUT=1
+
+      - PRISMA_QUERY_ENGINE_LIBRARY=/app/node_modules/@prisma/engines/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      - PRISMA_SCHEMA_ENGINE_BINARY=/app/node_modules/@prisma/engines/schema-engine-linux-musl-openssl-3.0.x
+    command: npx prisma studio --port 5555 --browser none

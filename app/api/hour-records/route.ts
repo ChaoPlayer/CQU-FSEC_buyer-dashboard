@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { HourType } from "@prisma/client";
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 // 获取工时记录
 export async function GET(request: Request) {
   try {

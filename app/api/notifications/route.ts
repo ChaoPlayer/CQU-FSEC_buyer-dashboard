@@ -11,6 +11,15 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: "未授权" }, { status: 401 });
     }
 
+    // 确保 session.user.id 存在
+    if (!session.user?.id) {
+      console.warn('session 缺少 user.id，返回空通知列表');
+      return NextResponse.json({
+        notifications: [],
+        unreadCount: 0,
+      });
+    }
+
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const unreadOnly = searchParams.get("unreadOnly") === "true";
@@ -44,10 +53,11 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("获取通知列表时出错:", error);
-    return NextResponse.json(
-      { message: "服务器内部错误" },
-      { status: 500 }
-    );
+    // 发生错误时返回空数组，避免前端崩溃
+    return NextResponse.json({
+      notifications: [],
+      unreadCount: 0,
+    });
   }
 }
 
