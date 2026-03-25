@@ -168,7 +168,7 @@ export default async function DashboardPage() {
 
         {/* 最近待审批申请 */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b flex justify-between items-center">
+          <div className="px-6 py-4 pb-4 mb-4 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-800">最近待审批申请</h2>
             <Link
               href="/admin?tab=purchases"
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full border-none">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -198,9 +198,9 @@ export default async function DashboardPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {recentPendingPurchases.map((purchase) => (
-                  <tr key={purchase.id} className="hover:bg-gray-50">
+              <tbody>
+                {recentPendingPurchases.map((purchase, index) => (
+                  <tr key={purchase.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {purchase.itemName}
@@ -303,11 +303,11 @@ export default async function DashboardPage() {
 
       {/* 采购列表 */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="px-6 py-4 pb-4 mb-4">
           <h2 className="text-xl font-semibold text-gray-800">近期采购记录</h2>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full border-none">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -327,9 +327,9 @@ export default async function DashboardPage() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {purchases.map((purchase) => (
-                <tr key={purchase.id} className="hover:bg-gray-50">
+            <tbody>
+              {purchases.map((purchase, index) => (
+                <tr key={purchase.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       {purchase.itemName}

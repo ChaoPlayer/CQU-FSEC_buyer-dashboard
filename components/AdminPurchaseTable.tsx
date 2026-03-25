@@ -190,7 +190,7 @@ export default function AdminPurchaseTable({ purchases, currentUser }: AdminPurc
           </div>
         </div>
       )}
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="min-w-full border-none">
         <thead className="bg-gray-50">
           <tr>
             <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -235,10 +235,10 @@ export default function AdminPurchaseTable({ purchases, currentUser }: AdminPurc
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
-          {localPurchases.map((purchase) => (
+        <tbody>
+          {localPurchases.map((purchase, index) => (
             <React.Fragment key={purchase.id}>
-              <tr className="hover:bg-gray-50">
+              <tr className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
                 <td className="px-2 py-4 whitespace-nowrap">
                   <button
                     onClick={() => toggleRow(purchase.id)}

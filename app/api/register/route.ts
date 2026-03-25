@@ -4,11 +4,11 @@ import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   try {
-    const { email, password, realName, studentId, group } = await request.json();
+    const { email, password, realName, studentId, group, inviteCode } = await request.json();
 
-    if (!email || !password || !realName || !studentId || !group) {
+    if (!email || !password || !realName || !studentId || !group || !inviteCode) {
       return NextResponse.json(
-        { message: "邮箱、密码、真实姓名、学号和组别均为必填项" },
+        { message: "邮箱、密码、真实姓名、学号、组别和邀请码均为必填项" },
         { status: 400 }
       );
     }
@@ -34,19 +34,48 @@ export async function POST(request: Request) {
       );
     }
 
+    // 校验邀请码
+    const invite = await (prisma as any).inviteCode.findUnique({
+      where: { code: inviteCode },
+    });
+
+    if (!invite) {
+      return NextResponse.json(
+        { message: "邀请码无效或已被使用" },
+        { status: 400 }
+      );
+    }
+
+    if (invite.isUsed) {
+      return NextResponse.json(
+        { message: "邀请码无效或已被使用" },
+        { status: 400 }
+      );
+    }
+
     // 哈希密码
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 创建用户，默认为 USER 角色
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        realName,
-        studentId,
-        group,
-        role: "USER",
-      },
+    // 使用事务创建用户并更新邀请码
+    const user = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          realName,
+          studentId,
+          group,
+          role: "USER",
+        },
+      });
+      await (tx as any).inviteCode.update({
+        where: { id: invite.id },
+        data: {
+          isUsed: true,
+          usedById: user.id,
+        },
+      });
+      return user;
     });
 
     // 移除密码字段再返回

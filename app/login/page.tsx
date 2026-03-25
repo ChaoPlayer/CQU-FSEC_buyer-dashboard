@@ -102,7 +102,7 @@ export default function LoginPage() {
             <p className="text-gray-600">
               还没有账号？{" "}
               <a href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-                立即注册
+                去注册
               </a>
             </p>
           </div>

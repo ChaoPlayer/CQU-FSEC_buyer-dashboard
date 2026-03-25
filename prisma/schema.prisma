@@ -18,11 +18,12 @@ model User {
   approvalLimit Float?         @default(0) // 审批额度
   realName      String?        // 真实姓名
   studentId     String?        // 学号
-  group         Group?         // 所属组别
+  group         String?        // 所属组别
   purchases     Purchase[]
   notifications Notification[]
   workSubmissions WorkSubmission[]
   hourRecords   HourRecord[]
+  inviteCodes   InviteCode[]   @relation("userInviteCodes")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -165,4 +166,17 @@ model AttendanceSummary {
   @@unique([employeeNo, date])
   @@index([employeeNo])
   @@index([date])
+}
+
+model InviteCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  isUsed    Boolean  @default(false)
+  usedBy    User?    @relation("userInviteCodes", fields: [usedById], references: [id])
+  usedById  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isUsed])
+  @@index([code])
 }

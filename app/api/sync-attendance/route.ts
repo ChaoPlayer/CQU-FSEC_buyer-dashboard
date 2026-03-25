@@ -15,9 +15,11 @@ const CSV_FILE_PATH = process.env.NODE_ENV === 'production'
 interface RawAttendanceRecord {
   '工号': string;
   '打卡时间': string;
+  '姓名'?: string; // 新增姓名列
   '设备名称'?: string; // 可选字段
   employeeNo?: string; // 英文键名兼容
   punchTime?: string; // 英文键名兼容
+  realName?: string; // 英文键名兼容
 }
 
 // 分组键
@@ -108,6 +110,7 @@ export async function GET(request: NextRequest) {
 
     // 4. 将原始记录按员工和日期分组
     const groups = new Map<string, Date[]>(); // key: `${employeeNo}|${date}` -> 打卡时间数组
+    const realNameMap = new Map<string, string>(); // key: `${employeeNo}|${date}` -> 真实姓名
     let parseErrorCount = 0;
     const parseErrors: string[] = [];
 
@@ -116,6 +119,7 @@ export async function GET(request: NextRequest) {
         // 兼容中文、英文键名，强转字符串并去除空格
         const employeeNo = (record['工号'] ?? record.employeeNo)?.toString()?.trim();
         const punchTimeStr = (record['打卡时间'] ?? record.punchTime)?.toString()?.trim();
+        const realName = (record['姓名'] ?? record.realName)?.toString()?.trim() || employeeNo; // 姓名列，默认为工号
 
         // 极度严谨的空值校验：只拦截 undefined 或空字符串，绝不拦截 "0"
         if (employeeNo === undefined || employeeNo === '' || punchTimeStr === undefined || punchTimeStr === '') {
@@ -137,6 +141,10 @@ export async function GET(request: NextRequest) {
           groups.set(groupKey, []);
         }
         groups.get(groupKey)!.push(punchTime);
+        // 存储真实姓名（如果未存储过则存储，同一分组可能有多条记录）
+        if (!realNameMap.has(groupKey)) {
+          realNameMap.set(groupKey, realName);
+        }
       } catch (err) {
         parseErrorCount++;
         parseErrors.push(`记录处理异常: ${err instanceof Error ? err.message : String(err)}`);
@@ -198,26 +206,28 @@ export async function GET(request: NextRequest) {
           },
         });
 
-        // 查找或创建对应的用户
+        // 查找或创建对应的用户（基于真实姓名匹配）
+        const realName = realNameMap.get(groupKey) || employeeNo;
         let user = await prisma.user.findFirst({
-          where: { studentId: employeeNo },
+          where: { realName },
         });
 
         if (!user) {
-          // 自动创建默认用户
-          const placeholderEmail = `${employeeNo}@placeholder.com`;
+          // 按姓名找不到用户，自动创建预注册账号
+          const placeholderEmail = `${realName.replace(/[^a-zA-Z0-9]/g, '')}_pending@cqufsae.com`;
           user = await prisma.user.upsert({
             where: { email: placeholderEmail },
             update: {}, // 如果已存在则保持原样
             create: {
               email: placeholderEmail,
-              name: `未知员工_${employeeNo}`,
+              name: realName,
+              realName,
               studentId: employeeNo,
               role: Role.USER,
               // 其他字段使用默认值
             },
           });
-          console.log(`已为工号 ${employeeNo} 创建默认用户，ID: ${user.id}`);
+          console.log(`已为姓名 ${realName} (工号 ${employeeNo}) 创建预注册用户，ID: ${user.id}`);
         }
 
         // 查找是否已存在同一天的考勤工时记录
