@@ -52,16 +52,16 @@ export default function LoginPage() {
           <div className="space-y-5">
             <div>
               <label htmlFor="email" className="sr-only">
-                邮箱地址
+                邮箱或学号
               </label>
               <input
                 id="email"
                 name="email"
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="username"
                 required
                 className="w-full px-4 py-3.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-500 text-gray-900 sm:text-sm"
-                placeholder="邮箱地址"
+                placeholder="邮箱或学号"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />

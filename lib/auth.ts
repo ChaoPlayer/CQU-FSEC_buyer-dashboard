@@ -10,16 +10,21 @@ export const authOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        email: { label: "邮箱或学号", type: "text" },
+        password: { label: "密码", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("请输入邮箱和密码");
+          throw new Error("请输入邮箱/学号和密码");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        const login = credentials.email.trim();
+        const isEmail = login.includes('@');
+
+        const user = await prisma.user.findFirst({
+          where: isEmail
+            ? { email: login }
+            : { studentId: login },
         });
 
         if (!user) {

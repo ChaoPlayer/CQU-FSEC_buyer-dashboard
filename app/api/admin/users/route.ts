@@ -12,8 +12,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 获取所有用户
+    // 解析组别筛选参数
+    const group = req.nextUrl.searchParams.get('group');
+    const whereClause: any = {};
+    if (group && group.trim() !== '') {
+      whereClause.group = group;
+    }
+
+    // 获取所有用户（可筛选）
     const users = await prisma.user.findMany({
+      where: whereClause,
       select: {
         id: true,
         email: true,
@@ -95,8 +103,8 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { id, role, maxLimit, approvalLimit } = await req.json();
-    console.log('PUT /api/admin/users', { id, role, maxLimit, approvalLimit });
+    const { id, role, maxLimit, approvalLimit, email } = await req.json();
+    console.log('PUT /api/admin/users', { id, role, maxLimit, approvalLimit, email });
     if (!id) {
       return NextResponse.json({ error: "缺少用户ID" }, { status: 400 });
     }
@@ -104,6 +112,25 @@ export async function PUT(req: NextRequest) {
     // 验证角色
     if (role && !Object.values(Role).includes(role)) {
       return NextResponse.json({ error: "无效的角色" }, { status: 400 });
+    }
+
+    // 邮箱验证与防重名校验
+    if (email !== undefined) {
+      // 邮箱格式校验
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: "邮箱格式无效" }, { status: 400 });
+      }
+      // 检查邮箱是否已被其他用户占用（排除当前用户）
+      const existingUserWithEmail = await prisma.user.findFirst({
+        where: {
+          email,
+          id: { not: id },
+        },
+      });
+      if (existingUserWithEmail) {
+        return NextResponse.json({ error: "该邮箱已被注册" }, { status: 400 });
+      }
     }
 
     // 获取旧用户数据以比较限额
@@ -117,6 +144,7 @@ export async function PUT(req: NextRequest) {
       where: { id },
       data: {
         ...(role && { role }),
+        ...(email !== undefined && { email }),
         ...(maxLimit !== undefined && { maxLimit: maxLimit === null ? null : Number(maxLimit) }),
         ...(approvalLimit !== undefined && { approvalLimit: approvalLimit === null ? null : Number(approvalLimit) }),
       },

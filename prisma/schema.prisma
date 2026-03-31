@@ -17,8 +17,10 @@ model User {
   maxLimit      Float?         @default(10000) // 用户可提交的最大金额上限，null 表示无限制
   approvalLimit Float?         @default(0) // 审批额度
   realName      String?        // 真实姓名
-  studentId     String?        // 学号
-  group         String?        // 所属组别
+  studentId     String? @unique // 学号
+  group         String?        // 所属组别（旧字段，过渡期间保留）
+  groupId       String?
+  teamGroup     TeamGroup?     @relation(fields: [groupId], references: [id])
   purchases     Purchase[]
   notifications Notification[]
   workSubmissions WorkSubmission[]
@@ -26,6 +28,13 @@ model User {
   inviteCodes   InviteCode[]   @relation("userInviteCodes")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+}
+
+model TeamGroup {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
 }
 
 model Notification {

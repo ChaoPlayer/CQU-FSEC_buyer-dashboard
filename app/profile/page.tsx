@@ -101,7 +101,7 @@ export default async function ProfilePage({
                 <div>
                   <label className="block text-sm font-medium text-gray-500">所属组别</label>
                   <p className="mt-1 text-lg text-gray-900">
-                    {user.group ? groupLabels[user.group] : "未设置"}
+                    {user.group ? groupLabels[user.group as Group] : "未设置"}
                   </p>
                 </div>
                 <div>

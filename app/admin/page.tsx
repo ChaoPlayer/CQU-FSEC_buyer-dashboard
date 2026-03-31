@@ -175,15 +175,17 @@ export default async function AdminPage({
   const topUserHours = userHoursData.length > 0 ? userHoursData[0].totalHours : 0;
 
   // 获取所有不重复的组别（用于下拉菜单）
-  const distinctGroups = await prisma.user.groupBy({
-    by: ['group'],
-    where: {
-      group: { not: null },
-    },
+  // @ts-ignore
+  console.log('prisma.teamGroup:', prisma.teamGroup);
+  const teamGroups = await prisma.teamGroup.findMany({
     orderBy: {
-      group: 'asc',
+      name: 'asc',
+    },
+    select: {
+      name: true,
     },
   });
+  const distinctGroups = teamGroups.map((g: { name: string }) => ({ group: g.name }));
 
   // 获取工作申请列表（用于审批子选项卡）
   const whereClauseForSubmissions: any = {};

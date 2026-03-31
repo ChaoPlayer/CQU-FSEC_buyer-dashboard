@@ -36,7 +36,10 @@ export default function ActivatePage() {
       }
 
       setUserId(data.userId);
-      setEmail(data.email || "");
+      // 如果邮箱是占位符（包含 _pending@），则清空
+      const email = data.email || "";
+      const isPlaceholder = email.includes("_pending@");
+      setEmail(isPlaceholder ? "" : email);
       setStudentId(data.studentId || "");
       setGroup(data.group || "");
       setStep("activate");
@@ -147,6 +150,20 @@ export default function ActivatePage() {
           <form className="mt-8 space-y-6" onSubmit={handleActivate}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
+                <label htmlFor="realName" className="sr-only">
+                  真实姓名
+                </label>
+                <input
+                  id="realName"
+                  name="realName"
+                  type="text"
+                  className="appearance-none rounded-t-md relative block w-full px-3 py-2 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  value={realName}
+                  readOnly
+                />
+                <p className="text-xs text-gray-500 mt-1">真实姓名已由预注册名单提供，不可修改</p>
+              </div>
+              <div>
                 <label htmlFor="email" className="sr-only">
                   邮箱地址
                 </label>
@@ -156,7 +173,7 @@ export default function ActivatePage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                   placeholder="邮箱地址"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

@@ -12,6 +12,11 @@ interface InviteCode {
   updatedAt: string;
 }
 
+interface TeamGroup {
+  id: string;
+  name: string;
+}
+
 interface User {
   id: string;
   email: string;
@@ -37,6 +42,9 @@ export default function UserManagementTable() {
   const [editingApprovalLimitId, setEditingApprovalLimitId] = useState<string | null>(null);
   const [tempApprovalLimit, setTempApprovalLimit] = useState<string>('');
 
+  const [editingEmailId, setEditingEmailId] = useState<string | null>(null);
+  const [tempEmail, setTempEmail] = useState<string>('');
+
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingInviteCodes, setLoadingInviteCodes] = useState(false);
@@ -46,20 +54,16 @@ export default function UserManagementTable() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string>('');
+  const [groups, setGroups] = useState<TeamGroup[]>([]);
 
-  const PRESET_GROUPS = [
-    '车架组',
-    '动力组',
-    '电控组',
-    '无人驾驶组',
-    '悬挂组',
-    '运营组',
-    '商务组',
-  ];
-
-  const fetchUsers = async () => {
+  const fetchUsers = async (group?: string) => {
     try {
-      const res = await fetch("/api/admin/users", {
+      setLoading(true);
+      const url = group
+        ? `/api/admin/users?group=${encodeURIComponent(group)}`
+        : "/api/admin/users";
+      const res = await fetch(url, {
         credentials: 'include',
       });
       if (!res.ok) throw new Error("获取用户列表失败");
@@ -89,8 +93,80 @@ export default function UserManagementTable() {
     }
   };
 
+  const fetchGroups = async () => {
+    try {
+      const res = await fetch("/api/admin/groups", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("获取组别列表失败");
+      const data = await res.json();
+      setGroups(data);
+    } catch (err) {
+      console.error("获取组别失败:", err);
+      // 可选的错误处理，暂时忽略
+    }
+  };
+
+  // 组别管理模态框状态
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<TeamGroup | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
+
+  const createGroup = async () => {
+    if (!newGroupName.trim()) return;
+    try {
+      const res = await fetch("/api/admin/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: newGroupName.trim() }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("创建组别失败响应:", res.status, errorText);
+        throw new Error(`创建组别失败 (${res.status}): ${errorText}`);
+      }
+      setNewGroupName("");
+      fetchGroups(); // 刷新列表
+    } catch (err) {
+      console.error("创建组别失败:", err);
+    }
+  };
+
+  const updateGroup = async (id: string, name: string) => {
+    if (!name.trim()) return;
+    try {
+      const res = await fetch(`/api/admin/groups/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) throw new Error("更新组别失败");
+      setEditingGroup(null);
+      fetchGroups();
+    } catch (err) {
+      console.error("更新组别失败:", err);
+    }
+  };
+
+  const deleteGroup = async (id: string) => {
+    if (!confirm("确定要删除这个组别吗？删除后，已关联的用户将变为未分配状态。")) return;
+    try {
+      const res = await fetch(`/api/admin/groups/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("删除组别失败");
+      fetchGroups();
+    } catch (err) {
+      console.error("删除组别失败:", err);
+    }
+  };
+
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(selectedGroup);
+    fetchGroups();
   }, []);
 
   const handleRoleChange = async (id: string, newRole: Role) => {
@@ -239,6 +315,43 @@ export default function UserManagementTable() {
     }
   };
 
+  const handleEmailChange = async (id: string, newEmail: string) => {
+    setUpdatingId(id);
+    try {
+      const res = await fetch(`/api/admin/users`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({ id, email: newEmail }),
+      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`更新邮箱失败: ${res.status} ${errorText}`);
+      }
+      const updatedUser = await res.json();
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === updatedUser.id
+            ? {
+                ...user,
+                ...updatedUser,
+                totalPurchases: user.totalPurchases,
+                totalAmount: user.totalAmount,
+                pendingCount: user.pendingCount,
+              }
+            : user
+        )
+      );
+      setEditingEmailId(null);
+      setTempEmail('');
+    } catch (err) {
+      console.error('handleEmailChange 错误:', err);
+      setError(err instanceof Error ? err.message : "更新失败");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -271,7 +384,7 @@ export default function UserManagementTable() {
       }
       setImportResult(data);
       // 刷新用户列表
-      fetchUsers();
+      fetchUsers(selectedGroup);
       // 清空文件
       setImportFile(null);
     } catch (err) {
@@ -297,7 +410,7 @@ export default function UserManagementTable() {
         <button
           onClick={() => {
             setError(null);
-            fetchUsers();
+            fetchUsers(selectedGroup);
           }}
           className="ml-4 text-sm underline"
         >
@@ -333,6 +446,31 @@ export default function UserManagementTable() {
       >
         <span className="mr-2">📥</span>
         批量导入名单
+      </button>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm font-medium text-gray-700">按组别筛选：</span>
+        <select
+          value={selectedGroup}
+          onChange={(e) => {
+            setSelectedGroup(e.target.value);
+            fetchUsers(e.target.value);
+          }}
+          className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">全部</option>
+          {groups.map((group) => (
+            <option key={group.id} value={group.name}>
+              {group.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        onClick={() => setShowGroupModal(true)}
+        className="inline-flex items-center px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+      >
+        <span className="mr-2">👥</span>
+        管理组别
       </button>
     </div>
     <div className="overflow-x-auto">
@@ -377,8 +515,52 @@ export default function UserManagementTable() {
         <tbody>
           {users.map((user, index) => (
             <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {user.email}
+              <td className="px-6 py-4 whitespace-nowrap">
+                {editingEmailId === user.id ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="email"
+                      value={tempEmail}
+                      onChange={(e) => setTempEmail(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm w-64"
+                      placeholder="邮箱地址"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        handleEmailChange(user.id, tempEmail);
+                      }}
+                      className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                      disabled={updatingId === user.id}
+                    >
+                      {updatingId === user.id ? "保存中..." : "保存"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingEmailId(null);
+                        setTempEmail('');
+                      }}
+                      className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {user.email}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingEmailId(user.id);
+                        setTempEmail(user.email);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-900"
+                    >
+                      编辑
+                    </button>
+                  </div>
+                )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {user.realName || "—"}
@@ -419,8 +601,8 @@ export default function UserManagementTable() {
                   className="border rounded px-2 py-1 text-sm w-32"
                 >
                   <option value="">未分配</option>
-                  {PRESET_GROUPS.map((g) => (
-                    <option key={g} value={g}>{g}</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.name}>{g.name}</option>
                   ))}
                 </select>
               </td>
@@ -738,6 +920,105 @@ export default function UserManagementTable() {
                 className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {importLoading ? '导入中...' : '开始导入'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* 组别管理模态框 */}
+    {showGroupModal && (
+      <div className="fixed inset-0 bg-black/60 overflow-y-auto h-full w-full z-50 flex items-center justify-center" onClick={() => setShowGroupModal(false)}>
+        <div className="relative bg-white p-8 rounded-lg shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="pb-4 mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                <span className="mr-2">👥</span>
+                管理组别
+              </h3>
+              <button
+                onClick={() => setShowGroupModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-gray-600 text-sm">
+              您可以在此添加、编辑或删除组别。删除组别后，已关联的用户将变为未分配状态。
+            </p>
+          </div>
+          {/* 新增组别表单 */}
+          <div className="flex items-center space-x-2 mb-6">
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              placeholder="输入新组别名称"
+              className="flex-1 border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              onClick={createGroup}
+              disabled={!newGroupName.trim()}
+              className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              添加
+            </button>
+          </div>
+          {/* 组别列表 */}
+          <div className="border rounded-lg divide-y">
+            {groups.map((group) => (
+              <div key={group.id} className="flex items-center justify-between p-4 hover:bg-gray-50">
+                {editingGroup?.id === group.id ? (
+                  <div className="flex items-center space-x-2 flex-1">
+                    <input
+                      type="text"
+                      defaultValue={editingGroup.name}
+                      onChange={(e) => setEditingGroup({ ...editingGroup, name: e.target.value })}
+                      className="border rounded px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => updateGroup(group.id, editingGroup.name)}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      保存
+                    </button>
+                    <button
+                      onClick={() => setEditingGroup(null)}
+                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                    >
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-lg font-medium">{group.name}</span>
+                    <div className="space-x-2">
+                      <button
+                        onClick={() => setEditingGroup(group)}
+                        className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        onClick={() => deleteGroup(group.id)}
+                        className="px-4 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* 底部按钮 */}
+          <div className="mt-8 pt-6 bg-gray-50 rounded-b-lg -mx-8 -mb-8 px-8 py-6">
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowGroupModal(false)}
+                className="px-6 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+              >
+                关闭
               </button>
             </div>
           </div>
