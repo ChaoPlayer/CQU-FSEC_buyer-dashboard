@@ -90,7 +90,7 @@ export default function ActivatePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-xl shadow-lg">
+      <div className="max-w-xl w-full space-y-10 p-10 bg-white rounded-xl shadow-lg">
         <div>
           <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
             {step === "verify" ? "验证姓名" : "激活账号"}
@@ -103,7 +103,7 @@ export default function ActivatePage() {
         </div>
 
         {step === "verify" ? (
-          <form className="mt-8 space-y-6" onSubmit={handleVerify}>
+          <form className="mt-10 space-y-8" onSubmit={handleVerify}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 <label htmlFor="realName" className="sr-only">
@@ -115,7 +115,7 @@ export default function ActivatePage() {
                   type="text"
                   autoComplete="given-name"
                   required
-                  className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   placeholder="真实姓名"
                   value={realName}
                   onChange={(e) => setRealName(e.target.value)}
@@ -147,7 +147,7 @@ export default function ActivatePage() {
             </div>
           </form>
         ) : (
-          <form className="mt-8 space-y-6" onSubmit={handleActivate}>
+          <form className="mt-10 space-y-8" onSubmit={handleActivate}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
                 <label htmlFor="realName" className="sr-only">
@@ -157,7 +157,7 @@ export default function ActivatePage() {
                   id="realName"
                   name="realName"
                   type="text"
-                  className="appearance-none rounded-t-md relative block w-full px-3 py-2 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-t-lg relative block w-full px-4 py-3 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   value={realName}
                   readOnly
                 />
@@ -173,7 +173,7 @@ export default function ActivatePage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   placeholder="邮箱地址"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -188,7 +188,7 @@ export default function ActivatePage() {
                   name="studentId"
                   type="text"
                   autoComplete="off"
-                  className={`appearance-none rounded-none relative block w-full px-3 py-2 border ${studentId.trim() ? 'bg-gray-100 text-gray-700 border-gray-300' : 'border-gray-300 placeholder-gray-500 text-gray-900'} focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm`}
+                  className={`appearance-none rounded-none relative block w-full px-4 py-3 border ${studentId.trim() ? 'bg-gray-100 text-gray-700 border-gray-300' : 'border-gray-300 placeholder-gray-500 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors`}
                   placeholder="学号（可选）"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
@@ -206,7 +206,7 @@ export default function ActivatePage() {
                   <>
                     <input
                       type="text"
-                      className="appearance-none rounded-none relative block w-full px-3 py-2 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                      className="appearance-none rounded-none relative block w-full px-4 py-3 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                       value={group}
                       readOnly
                     />
@@ -217,7 +217,7 @@ export default function ActivatePage() {
                   <select
                     id="group"
                     name="group"
-                    className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
                   >
@@ -238,7 +238,7 @@ export default function ActivatePage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   placeholder="密码（至少6位）"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -254,7 +254,7 @@ export default function ActivatePage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                  className="appearance-none rounded-b-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   placeholder="确认密码"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}

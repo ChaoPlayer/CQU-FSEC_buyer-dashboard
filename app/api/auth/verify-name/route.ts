@@ -27,12 +27,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 判断是否为待激活状态：邮箱包含 _pending@ 或密码为空
-    const isPendingEmail = user.email.includes('_pending@');
-    const hasNoPassword = !user.password;
-
-    if (!isPendingEmail && hasNoPassword) {
-      // 既不是待激活邮箱，也没有密码，视为已激活账号
+    // 如果用户已有密码，说明已经激活，禁止重复激活
+    if (user.password) {
       return NextResponse.json(
         { success: false, message: '该账号已激活，请直接登录' },
         { status: 400 }

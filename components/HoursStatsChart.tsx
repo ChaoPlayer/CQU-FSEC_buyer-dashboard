@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { UsersIcon } from '@heroicons/react/24/outline';
+import { UsersIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 interface GroupHoursData {
   group: string;
@@ -50,6 +51,19 @@ export default function HoursStatsChart({
   const [warningThreshold, setWarningThreshold] = useState(40);
   const [warningWhitelist, setWarningWhitelist] = useState<string[]>([]);
 
+  // 同步打卡记录状态
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{
+    success: boolean;
+    message: string;
+    upsertedCount: number;
+    parseErrorCount: number;
+    errorCount: number;
+    parseErrors?: string[];
+    upsertErrors?: string[];
+  } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   // 处理保存配置
   const handleSaveSettings = () => {
     const rule = {
@@ -67,6 +81,36 @@ export default function HoursStatsChart({
     setIsSettingsOpen(false);
   };
 
+  // 同步打卡记录
+  const handleSyncAttendance = async () => {
+    setIsSyncing(true);
+    setSyncProgress(null);
+    try {
+      const response = await fetch('/api/sync-attendance', {
+        method: 'GET',
+      });
+      const data = await response.json();
+      setSyncProgress(data);
+      if (data.success) {
+        // 可以显示成功消息，也可以自动刷新页面
+        console.log('同步成功:', data);
+      } else {
+        console.error('同步失败:', data);
+      }
+    } catch (error) {
+      console.error('同步请求失败:', error);
+      setSyncProgress({
+        success: false,
+        message: '请求失败: ' + (error instanceof Error ? error.message : String(error)),
+        upsertedCount: 0,
+        parseErrorCount: 0,
+        errorCount: 0,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // 若未提供数据，显示空状态
   if (groupData.length === 0 && userData.length === 0) {
     return (
@@ -78,6 +122,17 @@ export default function HoursStatsChart({
 
   // 准备横置柱状图数据（组别排名）
   const sortedGroupData = [...groupData].sort((a, b) => b.totalHours - a.totalHours).slice(0, 10);
+  // 转换为堆叠柱状图所需的数据结构（工作工时 + 考勤工时）
+  const stackedGroupData = sortedGroupData.map(item => {
+    // TODO: 待后端 API 响应结构调整，目前按 7:3 比例模拟拆分
+    const workHours = item.totalHours * 0.7;
+    const attendanceHours = item.totalHours * 0.3;
+    return {
+      ...item,
+      workHours,
+      attendanceHours,
+    };
+  });
   const isGroupLeader = currentUserRole === 'GROUP_LEADER';
 
   // 计算队员平均工时
@@ -114,34 +169,55 @@ export default function HoursStatsChart({
       {/* 核心数据卡片 */}
       <div className={`grid gap-6 ${isGroupLeader ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4'}`}>
         {!isGroupLeader && (
-          <div className="bg-white p-6 rounded-xl shadow">
-            <h3 className="text-lg font-medium text-gray-700">各组总工时</h3>
-            <p className="mt-2 text-3xl font-bold text-blue-600">{totalGroupHours.toFixed(1)} 小时</p>
-            <p className="text-sm text-gray-500">各组累计工时总和</p>
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4">
+            <div>
+              <h3 className="text-lg font-medium text-gray-600">各组总工时</h3>
+              <p className="text-3xl font-bold tracking-tight text-blue-600 mt-2">{totalGroupHours.toFixed(1)} 小时</p>
+              <p className="text-sm text-gray-500">各组累计工时总和</p>
+            </div>
+            <div className="flex flex-row gap-3 mt-4 w-full">
+              <button
+                onClick={() => setIsSyncModalOpen(true)}
+                disabled={isSyncing}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors text-sm whitespace-nowrap"
+              >
+                <ArrowPathIcon className="h-3 w-3" />
+                {isSyncing ? '同步中...' : '同步'}
+              </button>
+              <Link
+                href="/admin/history-hours"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors text-sm whitespace-nowrap"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                历史
+              </Link>
+            </div>
           </div>
         )}
-        <div className="bg-white p-6 rounded-xl shadow">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
             <UsersIcon className="h-5 w-5 text-gray-500" />
-            <h3 className="text-lg font-medium text-gray-700">今日出勤人数</h3>
+            <h3 className="text-lg font-medium text-gray-600">今日出勤人数</h3>
           </div>
           <div className="flex flex-col">
-            <p className="mt-2 text-3xl font-bold text-green-600">
+            <p className="text-3xl font-bold tracking-tight text-green-600">
               {todayAttendanceCount} 人
             </p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500">
               出勤队员平均时长：{todayAverageHours.toFixed(1)} 小时
             </p>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="text-lg font-medium text-gray-700">待审批申请</h3>
-          <p className="mt-2 text-3xl font-bold text-yellow-600">{pendingCount}</p>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-2">
+          <h3 className="text-lg font-medium text-gray-600">待审批申请</h3>
+          <p className="text-3xl font-bold tracking-tight text-yellow-600">{pendingCount}</p>
           <p className="text-sm text-gray-500">线上工作申请数</p>
         </div>
-        <div className="bg-white p-6 rounded-xl shadow relative">
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col gap-2 relative">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-700">工时预警</h3>
+            <h3 className="text-lg font-medium text-gray-600">工时预警</h3>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -152,28 +228,29 @@ export default function HoursStatsChart({
               </svg>
             </button>
           </div>
-          <p className="mt-2 text-3xl font-bold text-red-600">{warning || '无'}</p>
+          <p className="text-3xl font-bold tracking-tight text-red-600">{warning || '无'}</p>
           <p className="text-sm text-gray-500">系统监控提示</p>
         </div>
       </div>
 
       {/* 各组总工时横置柱状图（仅当有多个组且不是组长时显示） */}
       {!isGroupLeader && sortedGroupData.length > 1 && (
-        <div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">各组总工时排名</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 layout="vertical"
-                data={sortedGroupData}
+                data={stackedGroupData}
                 margin={{ top: 20, right: 30, left: 80, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis type="category" dataKey="group" />
-                <Tooltip formatter={(value) => [`${value} 小时`, '工时']} />
+                <Tooltip formatter={(value, name) => [`${(Number(value) || 0).toFixed(1)} 小时`, name]} />
                 <Legend />
-                <Bar dataKey="totalHours" name="工时数" fill="#4f46e5" maxBarSize={30} />
+                <Bar dataKey="workHours" name="工作工时" fill="#3b82f6" stackId="a" radius={[4, 4, 0, 0]} maxBarSize={30} />
+                <Bar dataKey="attendanceHours" name="考勤工时" fill="#93c5fd" stackId="a" radius={[0, 0, 4, 4]} maxBarSize={30} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -182,7 +259,7 @@ export default function HoursStatsChart({
 
       {/* 队员工时排名水平柱状图 */}
       {sortedUserData.length > 0 && (
-        <div>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             {sortedGroupData.length <= 1 || isGroupLeader ? "本组队员工时排名" : "队员工时排名"}
           </h3>
@@ -198,7 +275,7 @@ export default function HoursStatsChart({
                 <YAxis type="category" dataKey="name" width={80} />
                 <Tooltip content={<CustomUserTooltip />} />
                 <Legend />
-                <Bar dataKey="totalHours" name="工时数" fill="#4f46e5" maxBarSize={30} />
+                <Bar dataKey="totalHours" name="工时数" fill="#3b82f6" radius={[4, 4, 4, 4]} maxBarSize={30} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -314,6 +391,121 @@ export default function HoursStatsChart({
                 >
                   保存配置
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 同步打卡记录弹窗 */}
+      {isSyncModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4">
+            <div className="p-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-6">同步打卡记录</h3>
+              
+              {isSyncing ? (
+                <div className="text-center py-8">
+                  <ArrowPathIcon className="h-12 w-12 text-blue-500 animate-spin mx-auto" />
+                  <p className="mt-4 text-gray-600">正在同步打卡记录，请稍候...</p>
+                </div>
+              ) : syncProgress ? (
+                <div className="space-y-6">
+                  <div className={`p-4 rounded-lg ${syncProgress.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+                    <h4 className={`font-semibold ${syncProgress.success ? 'text-green-800' : 'text-red-800'}`}>
+                      {syncProgress.success ? '同步成功' : '同步失败'}
+                    </h4>
+                    <p className="mt-2 text-gray-700">{syncProgress.message}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">成功同步</p>
+                      <p className="text-2xl font-bold text-blue-600">{syncProgress.upsertedCount} 条</p>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">解析失败</p>
+                      <p className="text-2xl font-bold text-yellow-600">{syncProgress.parseErrorCount} 条</p>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600">处理失败</p>
+                      <p className="text-2xl font-bold text-red-600">{syncProgress.errorCount} 条</p>
+                    </div>
+                  </div>
+
+                  {syncProgress.parseErrors && syncProgress.parseErrors.length > 0 && (
+                    <div>
+                      <h5 className="font-medium text-gray-700 mb-2">解析错误（前10条）</h5>
+                      <ul className="text-sm text-gray-600 bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
+                        {syncProgress.parseErrors.map((err, idx) => (
+                          <li key={idx} className="py-1 border-b last:border-0">• {err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {syncProgress.upsertErrors && syncProgress.upsertErrors.length > 0 && (
+                    <div>
+                      <h5 className="font-medium text-gray-700 mb-2">处理错误（前10条）</h5>
+                      <ul className="text-sm text-gray-600 bg-gray-50 p-3 rounded max-h-32 overflow-y-auto">
+                        {syncProgress.upsertErrors.map((err, idx) => (
+                          <li key={idx} className="py-1 border-b last:border-0">• {err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <p className="text-gray-600">
+                    此操作将从CSV文件读取打卡记录，计算工时并发放给对应队员。
+                  </p>
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <p className="text-yellow-800">
+                      <strong>注意：</strong> 同步过程可能需要几分钟，请勿关闭页面。
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* 底部按钮 */}
+              <div className="flex justify-end space-x-4 mt-8">
+                {!isSyncing && !syncProgress && (
+                  <button
+                    className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                    onClick={() => setIsSyncModalOpen(false)}
+                  >
+                    取消
+                  </button>
+                )}
+                {!syncProgress && (
+                  <button
+                    className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium transition-colors disabled:opacity-50"
+                    onClick={handleSyncAttendance}
+                    disabled={isSyncing}
+                  >
+                    {isSyncing ? '同步中...' : '开始同步'}
+                  </button>
+                )}
+                {syncProgress && (
+                  <>
+                    <button
+                      className="px-5 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                      onClick={() => setIsSyncModalOpen(false)}
+                    >
+                      关闭
+                    </button>
+                    <button
+                      className="px-5 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium transition-colors"
+                      onClick={() => {
+                        setSyncProgress(null);
+                        setIsSyncModalOpen(false);
+                      }}
+                    >
+                      完成
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

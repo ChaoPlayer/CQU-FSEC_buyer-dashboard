@@ -37,10 +37,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证用户是否处于待激活状态（邮箱包含 _pending@ 或密码为空）
-    const isPendingEmail = user.email.includes('_pending@');
-    const hasNoPassword = !user.password;
-    if (!isPendingEmail && !hasNoPassword) {
+    // 如果用户已有密码，说明已经激活，禁止重复激活
+    if (user.password) {
       return NextResponse.json(
         { success: false, message: '该账号已激活，无法重复激活' },
         { status: 400 }

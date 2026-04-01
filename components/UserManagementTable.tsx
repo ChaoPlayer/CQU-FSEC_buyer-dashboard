@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Role } from "@prisma/client";
+import { KeyIcon, ArrowUpTrayIcon, UsersIcon } from "@heroicons/react/24/outline";
 
 interface InviteCode {
   id: string;
@@ -56,6 +57,15 @@ export default function UserManagementTable() {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [groups, setGroups] = useState<TeamGroup[]>([]);
+
+  // 搜索状态
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 管理员重置密码相关状态
+  const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null);
+  const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   const fetchUsers = async (group?: string) => {
     try {
@@ -168,6 +178,17 @@ export default function UserManagementTable() {
     fetchUsers(selectedGroup);
     fetchGroups();
   }, []);
+
+  // 根据搜索词筛选用户
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery.trim()) return users;
+    const query = searchQuery.toLowerCase();
+    return users.filter(user =>
+      (user.email && user.email.toLowerCase().includes(query)) ||
+      (user.realName && user.realName.toLowerCase().includes(query)) ||
+      (user.group && user.group.toLowerCase().includes(query))
+    );
+  }, [users, searchQuery]);
 
   const handleRoleChange = async (id: string, newRole: Role) => {
     setUpdatingId(id);
@@ -395,6 +416,40 @@ export default function UserManagementTable() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!resetPasswordUserId || !newPassword.trim()) {
+      alert('请输入新密码');
+      return;
+    }
+    if (newPassword.trim().length < 6) {
+      alert('密码长度至少6位');
+      return;
+    }
+    setResetPasswordLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users/${resetPasswordUserId}/reset-password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ newPassword: newPassword.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '重置密码失败');
+      }
+      const result = await res.json();
+      alert(result.message || '密码重置成功');
+      setResetPasswordModalOpen(false);
+      setNewPassword('');
+      setResetPasswordUserId(null);
+    } catch (err) {
+      console.error('重置密码失败:', err);
+      alert(err instanceof Error ? err.message : '重置密码失败');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -426,25 +481,25 @@ export default function UserManagementTable() {
       <button
         onClick={fetchInviteCodes}
         disabled={loadingInviteCodes}
-        className="inline-flex items-center px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loadingInviteCodes ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400 mr-2"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
             加载中...
           </>
         ) : (
           <>
-            <span className="mr-2">🔑</span>
+            <KeyIcon className="h-4 w-4" />
             获取注册邀请码
           </>
         )}
       </button>
       <button
         onClick={() => setBatchImportModalOpen(true)}
-        className="inline-flex items-center px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+        className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
       >
-        <span className="mr-2">📥</span>
+        <ArrowUpTrayIcon className="h-4 w-4" />
         批量导入名单
       </button>
       <div className="flex items-center space-x-2">
@@ -465,11 +520,30 @@ export default function UserManagementTable() {
           ))}
         </select>
       </div>
+      <div className="flex items-center space-x-2">
+        <span className="text-sm font-medium text-gray-700">搜索用户：</span>
+        <input
+          type="text"
+          placeholder="邮箱、姓名、组别"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-64"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="清除搜索"
+          >
+            ✕
+          </button>
+        )}
+      </div>
       <button
         onClick={() => setShowGroupModal(true)}
-        className="inline-flex items-center px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+        className="px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors flex items-center gap-2"
       >
-        <span className="mr-2">👥</span>
+        <UsersIcon className="h-4 w-4" />
         管理组别
       </button>
     </div>
@@ -513,7 +587,7 @@ export default function UserManagementTable() {
           </tr>
         </thead>
         <tbody>
-          {users.map((user, index) => (
+          {filteredUsers.map((user, index) => (
             <tr key={user.id} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100`}>
               <td className="px-6 py-4 whitespace-nowrap">
                 {editingEmailId === user.id ? (
@@ -1019,6 +1093,71 @@ export default function UserManagementTable() {
                 className="px-6 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
               >
                 关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* 管理员重置密码模态框 */}
+    {resetPasswordModalOpen && (
+      <div className="fixed inset-0 bg-black/60 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="relative bg-white p-8 rounded-lg shadow-2xl max-w-md w-full mx-4">
+          <div className="pb-4 mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                <span className="mr-2">🔒</span>
+                管理员重置密码
+              </h3>
+              <button
+                onClick={() => {
+                  setResetPasswordModalOpen(false);
+                  setNewPassword('');
+                  setResetPasswordUserId(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+            <p className="text-gray-600 text-sm">
+              请为选中的用户设置新密码（至少6位字符）
+            </p>
+          </div>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                新密码
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="输入新密码"
+                autoFocus
+              />
+              <p className="mt-1 text-xs text-gray-500">密码长度至少6位</p>
+            </div>
+          </div>
+          <div className="mt-8 pt-6 bg-gray-50 rounded-b-lg -mx-8 -mb-8 px-8 py-6">
+            <div className="flex justify-between">
+              <button
+                onClick={() => {
+                  setResetPasswordModalOpen(false);
+                  setNewPassword('');
+                  setResetPasswordUserId(null);
+                }}
+                className="px-6 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resetPasswordLoading || newPassword.trim().length < 6}
+                className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resetPasswordLoading ? '重置中...' : '确认重置'}
               </button>
             </div>
           </div>
