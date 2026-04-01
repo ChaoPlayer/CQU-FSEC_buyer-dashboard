@@ -20,10 +20,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 调试：输出 prisma 对象的可用键
-    const prismaKeys = Object.keys(prisma).filter(k => !k.startsWith('$') && !k.startsWith('_'));
-    console.log('Prisma available keys:', prismaKeys);
     // 尝试多种可能的模型键名
+    const prismaKeys = Object.keys(prisma).filter(k => !k.startsWith('$') && !k.startsWith('_'));
     const possibleKeys = ['inviteCode', 'inviteCodes', 'InviteCode'];
     let inviteCodeModel = undefined;
     for (const key of possibleKeys) {

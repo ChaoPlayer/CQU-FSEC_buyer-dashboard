@@ -176,7 +176,6 @@ export default async function AdminPage({
 
   // 获取所有不重复的组别（用于下拉菜单）
   // @ts-ignore
-  console.log('prisma.teamGroup:', prisma.teamGroup);
   const teamGroups = await prisma.teamGroup.findMany({
     orderBy: {
       name: 'asc',

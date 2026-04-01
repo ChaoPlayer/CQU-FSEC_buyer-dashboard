@@ -51,6 +51,25 @@ export default async function HistoryHoursPage() {
     },
   });
 
+  // 查询本周每个用户的工时（所有类型）
+  const weekHoursByUser = await prisma.hourRecord.groupBy({
+    by: ["userId"],
+    where: {
+      createdAt: {
+        gte: startOfWeek,
+        lte: endOfWeek,
+      },
+    },
+    _sum: {
+      hours: true,
+    },
+  });
+  // 构建 userId -> 本周工时的映射
+  const weekHoursMap = new Map<string, number>();
+  weekHoursByUser.forEach(entry => {
+    weekHoursMap.set(entry.userId, entry._sum.hours || 0);
+  });
+
   // 构建用户工时数据
   const userHoursData = userHours.map(uh => {
     const user = users.find(u => u.id === uh.userId);
@@ -75,25 +94,6 @@ export default async function HistoryHoursPage() {
     group,
     totalHours,
   }));
-
-  // 查询本周每个用户的工时（所有类型）
-  const weekHoursByUser = await prisma.hourRecord.groupBy({
-    by: ["userId"],
-    where: {
-      createdAt: {
-        gte: startOfWeek,
-        lte: endOfWeek,
-      },
-    },
-    _sum: {
-      hours: true,
-    },
-  });
-  // 构建 userId -> 本周工时的映射
-  const weekHoursMap = new Map<string, number>();
-  weekHoursByUser.forEach(entry => {
-    weekHoursMap.set(entry.userId, entry._sum.hours || 0);
-  });
 
   // 查询本周出勤工时
   const weekAttendanceHours = await prisma.hourRecord.aggregate({
@@ -151,6 +151,32 @@ export default async function HistoryHoursPage() {
     hours,
   })).sort((a, b) => a.date.localeCompare(b.date));
 
+
+  // ==========================================
+  // 💡 修复核心区：在 return 之前完成所有派生数据的计算和排序
+  // ==========================================
+
+  // 1. 处理各组数据：计算均值并使用展开语法 [...] 避免 sort 污染原数组
+  const finalGroupHoursData = [...groupHoursData]
+    .map(group => {
+      const groupUsers = userHoursData.filter(uh => uh.user?.group === group.group);
+      const avgHours = groupUsers.length > 0 
+        ? groupUsers.reduce((sum, uh) => sum + uh.totalHours, 0) / groupUsers.length 
+        : 0;
+      return {
+        ...group,
+        userCount: groupUsers.length,
+        avgHours
+      };
+    })
+    .sort((a, b) => b.totalHours - a.totalHours);
+
+  // 2. 处理用户排序，完全脱离 JSX
+  const finalUserHoursData = [...userHoursData].sort((a, b) => b.totalHours - a.totalHours);
+
+  // 3. 提取最大出勤工时，只计算一次（性能巨幅提升）
+  const maxAttendanceHours = Math.max(...attendanceByDay.map(d => d.hours), 1);
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
@@ -207,60 +233,42 @@ export default async function HistoryHoursPage() {
       </div>
 
       {/* 组别工时排名 */}
-      {groupHoursData.length > 0 && (
+      {finalGroupHoursData.length > 0 && (
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">各组累计工时排名</h3>
           <div className="overflow-x-auto max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-track-gray-100 scrollbar-thumb-gray-300">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    排名
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    组别
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    总工时
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    用户数
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    平均工时
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">组别</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">总工时</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户数</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">平均工时</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {groupHoursData
-                  .sort((a, b) => b.totalHours - a.totalHours)
-                  .map((group, index) => {
-                    const groupUsers = userHoursData.filter(uh => uh.user?.group === group.group);
-                    const avgHours = groupUsers.length > 0 
-                      ? groupUsers.reduce((sum, uh) => sum + uh.totalHours, 0) / groupUsers.length 
-                      : 0;
-                    return (
-                      <tr key={group.group} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${index < 3 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                            {index + 1}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 truncate font-medium text-gray-900">
-                          {group.group}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-bold text-blue-600">{group.totalHours.toFixed(1)}</span> 小时
-                        </td>
-                        <td className="px-4 py-3 truncate text-gray-600">
-                          {groupUsers.length} 人
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <span className="font-medium text-green-600">{avgHours.toFixed(1)}</span> 小时
-                        </td>
-                      </tr>
-                    );
-                  })}
+                {finalGroupHoursData.map((groupData, index) => (
+                  <tr key={groupData.group} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${index < 3 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 truncate font-medium text-gray-900">
+                      {groupData.group}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-bold text-blue-600">{groupData.totalHours.toFixed(1)}</span> 小时
+                    </td>
+                    <td className="px-4 py-3 truncate text-gray-600">
+                      {groupData.userCount} 人
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-medium text-green-600">{groupData.avgHours.toFixed(1)}</span> 小时
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -268,73 +276,57 @@ export default async function HistoryHoursPage() {
       )}
 
       {/* 用户工时排名 */}
-      {userHoursData.length > 0 && (
+      {finalUserHoursData.length > 0 && (
         <div className="bg-white rounded-xl shadow p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">用户累计工时排名</h3>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    排名
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    姓名
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    邮箱
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    组别
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    累计工时
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    本周工时
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    记录数
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">组别</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">累计工时</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">本周工时</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">记录数</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {userHoursData
-                  .sort((a, b) => b.totalHours - a.totalHours)
-                  .map((user, index) => (
-                    <tr key={user.userId} className="hover:bg-gray-50 even:bg-gray-50/50">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${index < 3 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {index + 1}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
-                        {user.user?.realName || "未命名"}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">
-                        {user.user?.email || "-"}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
-                          {user.user?.group || "未分组"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className="font-bold text-blue-600">{user.totalHours.toFixed(1)}</span> 小时
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`font-medium ${user.weeklyHours === 0 ? 'text-gray-400' : 'text-emerald-600'}`}>{user.weeklyHours?.toFixed(1) || '0.0'}</span> 小时
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-gray-600">
-                        {user.recordCount} 条
-                      </td>
-                    </tr>
-                  ))}
+                {finalUserHoursData.map((userData, index) => (
+                  <tr key={userData.userId} className="hover:bg-gray-50 even:bg-gray-50/50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full ${index < 3 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
+                      {userData.user?.realName || "未命名"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                      {userData.user?.email || "-"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">
+                        {userData.user?.group || "未分组"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="font-bold text-blue-600">{userData.totalHours.toFixed(1)}</span> 小时
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`font-medium ${userData.weeklyHours === 0 ? 'text-gray-400' : 'text-emerald-600'}`}>{userData.weeklyHours?.toFixed(1) || '0.0'}</span> 小时
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                      {userData.recordCount} 条
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
           <p className="mt-4 text-sm text-gray-500">
-            共 {userHoursData.length} 名用户。
+            共 {finalUserHoursData.length} 名用户。
           </p>
         </div>
       )}
@@ -347,21 +339,14 @@ export default async function HistoryHoursPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    日期
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    出勤工时
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    进度条
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">出勤工时</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">进度条</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {attendanceByDay.map((day) => {
-                  const maxHours = Math.max(...attendanceByDay.map(d => d.hours), 1);
-                  const percentage = (day.hours / maxHours) * 100;
+                  const percentage = (day.hours / maxAttendanceHours) * 100;
                   return (
                     <tr key={day.date} className="hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-900">
@@ -373,7 +358,7 @@ export default async function HistoryHoursPage() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         <div className="w-full bg-gray-200 rounded-full h-4">
                           <div
-                            className="bg-green-600 h-4 rounded-full"
+                            className="bg-green-600 h-4 rounded-full transition-all duration-500"
                             style={{ width: `${percentage}%` }}
                           ></div>
                         </div>
@@ -391,9 +376,6 @@ export default async function HistoryHoursPage() {
       <div className="bg-gray-50 rounded-xl p-6">
         <h4 className="font-medium text-gray-800 mb-2">说明</h4>
         <ul className="text-sm text-gray-600 list-disc pl-5 space-y-1">
-          <li>累计总工时：所有用户的所有工时记录总和，包括考勤工时和工作工时。</li>
-          <li>本周出勤工时：仅统计本周（周一至周日）的考勤工时。</li>
-          <li>用户工时排名：按累计工时排序，仅显示前20名。</li>
           <li>数据实时更新，每次同步打卡记录后会自动刷新。</li>
         </ul>
       </div>

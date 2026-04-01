@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   procurement-web:
-    image: procurement-web:v2.1
+    image: procurement-web:v3.1
     container_name: procurement-web
     ports:
       - "3000:3000"
@@ -18,7 +18,7 @@ services:
       - DATABASE_URL=file:/app/prisma/dev.db
 
   prisma-studio:
-    image: procurement-web:v2.1
+    image: procurement-web:v3.1
     container_name: prisma-studio
     ports:
       - "5555:5555"
