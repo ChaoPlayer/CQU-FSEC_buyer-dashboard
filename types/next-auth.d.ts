@@ -5,6 +5,8 @@ declare module "next-auth" {
     user: {
       id: string;
       role: string;
+      /** TeamGroup 的主键 ID，从 JWT 实时同步自数据库 */
+      groupId: string | null;
     } & DefaultSession["user"];
   }
 
@@ -17,5 +19,6 @@ declare module "next-auth/jwt" {
   interface JWT {
     role?: string;
     id?: string;
+    groupId?: string | null;
   }
 }

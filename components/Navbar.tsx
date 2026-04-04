@@ -51,6 +51,18 @@ export default function Navbar() {
             >
               主页
             </Link>
+            {session && (
+              <Link
+                href="/dashboard/progress-trees"
+                className={`px-3 py-2 rounded-md text-sm font-medium ${
+                  isActive("/dashboard/progress-trees")
+                    ? "bg-indigo-100 text-indigo-700"
+                    : "text-gray-700 hover:bg-gray-100"
+                }`}
+              >
+                进度树
+              </Link>
+            )}
             {(session?.user?.role === "ADMIN" || session?.user?.role === "GROUP_LEADER") && (
               <>
                 <Link

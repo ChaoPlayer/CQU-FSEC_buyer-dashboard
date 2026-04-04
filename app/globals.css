@@ -24,3 +24,82 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== 时间轴自定义滚动条 ===== */
+.timeline-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.timeline-scroll-container::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 9999px;
+}
+
+.timeline-scroll-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+  transition: background 0.2s;
+}
+
+.timeline-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ===== 时间轴横向自定义滚动条 ===== */
+.timeline-scroll-container-h::-webkit-scrollbar {
+  height: 5px;
+}
+
+.timeline-scroll-container-h::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 9999px;
+}
+
+.timeline-scroll-container-h::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+
+.timeline-scroll-container-h::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ===== 最新节点呼吸光环动画 ===== */
+@keyframes latest-node-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  60% {
+    transform: scale(2.2);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(3.0);
+    opacity: 0;
+  }
+}
+
+.latest-node-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  margin-left: -16px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #2563eb 0%, #1d4ed8 40%, transparent 70%);
+  animation: latest-node-ring 2.0s ease-out infinite;
+  pointer-events: none;
+}
+
+/* 双层延迟，制造波纹层叠效果 */
+.latest-node-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #3b82f6 0%, #2563eb 40%, transparent 70%);
+  animation: latest-node-ring 2.0s ease-out 0.8s infinite;
+}

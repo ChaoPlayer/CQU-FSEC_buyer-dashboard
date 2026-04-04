@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import type { Role } from "@prisma/client";
 
 export const authOptions = {
   adapter: PrismaAdapter(prisma),
@@ -59,20 +60,30 @@ export const authOptions = {
   },
   callbacks: {
     async jwt({ token, user }: any) {
-      console.log('jwt回调 user:', user);
       if (user) {
+        // 初次登录：从 authorize 返回的 user 对象中写入 token
         token.role = (user as any).role;
         token.id = (user as any).id;
-        console.log('设置 token id:', token.id);
+      } else if (token.id) {
+        // 后续请求：每次从数据库重新读取最新的 role 和 groupId
+        // 这样管理员修改角色后，被修改用户下次请求即可生效，无需重新登录
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, groupId: true },
+        });
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.groupId = dbUser.groupId ?? null;
+        }
       }
       return token;
     },
     async session({ session, token }: any) {
-      console.log('session回调 token:', token);
       if (session.user) {
         session.user.role = token.role as string;
         session.user.id = token.id as string;
-        console.log('设置 session user id:', session.user.id);
+        // 将 groupId 也写入 session，供服务端权限判断使用
+        session.user.groupId = (token.groupId as string | null) ?? null;
       }
       return session;
     },

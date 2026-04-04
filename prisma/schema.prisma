@@ -26,6 +26,10 @@ model User {
   workSubmissions WorkSubmission[]
   hourRecords   HourRecord[]
   inviteCodes   InviteCode[]   @relation("userInviteCodes")
+  submittedTreeVersions TreeVersion[] @relation("Submitter")
+  mergedTreeVersions    TreeVersion[] @relation("MergedByUser")
+  startedSeasonSettlements SeasonSettlement[] @relation("SeasonSettlementStartedBy")
+  createdProgressTrees     ProgressTree[]     @relation("ProgressTreeCreator")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -34,6 +38,7 @@ model TeamGroup {
   id        String   @id @default(uuid())
   name      String   @unique
   users     User[]
+  progressTrees ProgressTree[]
   createdAt DateTime @default(now())
 }
 
@@ -155,6 +160,7 @@ model HourRecord {
   userId         String
   workSubmission WorkSubmission? @relation(fields: [submissionId], references: [id])
   submissionId   String?        // 关联的工作提交ID（仅type=WORK时）
+  treeVersion    TreeVersion?   @relation("TreeVersionHourRecord")
   createdAt      DateTime       @default(now())
 
   @@index([userId])
@@ -175,6 +181,84 @@ model AttendanceSummary {
   @@unique([employeeNo, date])
   @@index([employeeNo])
   @@index([date])
+}
+// 进度树与赛季结算系统
+enum TreeStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum VersionType {
+  MAIN
+  BRANCH
+}
+
+enum VersionStatus {
+  PENDING
+  MERGED
+  REJECTED
+}
+
+enum SettlementStatus {
+  NOT_STARTED
+  LEADER_CONFIRMATION
+  COMPLETED
+}
+
+model ProgressTree {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  group       TeamGroup     @relation(fields: [groupId], references: [id])
+  groupId     String
+  creatorId   String?
+  creator     User?         @relation("ProgressTreeCreator", fields: [creatorId], references: [id])
+  status      TreeStatus    @default(ACTIVE)
+  versions    TreeVersion[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model TreeVersion {
+  id              String        @id @default(cuid())
+  tree            ProgressTree  @relation(fields: [treeId], references: [id])
+  treeId          String
+  type            VersionType   @default(BRANCH)
+  status          VersionStatus @default(PENDING)
+  fileUrl         String?       // 存储路径，如 /uploads/progress-trees/组名/uuid_文件名.ext
+  fileName        String?       // 原始文件名
+  versionNumber   Int?          // 版本号，如 V1, V2
+  name            String?       // 版本自定义名称（可选）
+  submitter       User          @relation("Submitter", fields: [submitterId], references: [id])
+  submitterId     String
+  description     String        // 强制修改说明（非空）
+  mergedAt        DateTime?     // 合并时间
+  mergedBy        User?         @relation("MergedByUser", fields: [mergedById], references: [id])
+  mergedById      String?
+  rejectionReason String?       // 驳回理由
+  hoursAwarded    Float?        // 发放的工时数
+  hourRecord      HourRecord?   @relation("TreeVersionHourRecord", fields: [hourRecordId], references: [id])
+  hourRecordId    String?        @unique
+  parentVersion   TreeVersion?  @relation("ParentChild", fields: [parentVersionId], references: [id])
+  parentVersionId String?
+  childVersions   TreeVersion[] @relation("ParentChild")
+  seasonKept      Boolean       @default(false) // 赛季结算时是否保留
+  note            String?       // 节点备注（管理员/创建者可写，显示在 hover tooltip）
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model SeasonSettlement {
+  id          String           @id @default(cuid())
+  seasonName  String           // 如 "2025赛季"
+  status      SettlementStatus @default(NOT_STARTED)
+  startedBy   User             @relation("SeasonSettlementStartedBy", fields: [startedById], references: [id])
+  startedById String
+  startedAt   DateTime?
+  completedAt DateTime?
+  data        Json?            // 存储各组确认的元数据（JSON结构）
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model InviteCode {
