@@ -1,6 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// GET /api/auth/verify-name?userId=xxx
+// 供 /activate 页面在携带 userId 参数时直接获取预注册信息，跳过 verify 步骤
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: '缺少 userId 参数' },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { success: false, message: '未找到对应用户' },
+        { status: 404 }
+      );
+    }
+
+    // 已激活的账号不允许再次激活
+    if (user.password) {
+      return NextResponse.json(
+        { success: false, message: '该账号已激活，请直接登录' },
+        { status: 400 }
+      );
+    }
+
+    const email = user.email || '';
+    const isPlaceholder = email.includes('_pending@');
+
+    return NextResponse.json({
+      success: true,
+      userId: user.id,
+      realName: user.realName,
+      email: isPlaceholder ? '' : email,
+      studentId: user.studentId,
+      group: user.group,
+      message: '账号可激活',
+    });
+  } catch (error: any) {
+    console.error('通过 userId 查询用户失败:', error);
+    return NextResponse.json(
+      { success: false, message: '服务器内部错误', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

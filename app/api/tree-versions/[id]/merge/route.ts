@@ -55,6 +55,17 @@ export async function POST(
       return NextResponse.json({ message: "版本状态不是待审核，无法操作" }, { status: 400 });
     }
 
+    // 检查是否有进行中的赛季结算（锁定状态）
+    const activeSettlement = await prisma.seasonSettlement.findFirst({
+      where: { status: { in: ["NOT_STARTED", "LEADER_CONFIRMATION"] } },
+    });
+    if (activeSettlement) {
+      return NextResponse.json(
+        { message: `赛季结算进行中（${activeSettlement.seasonName}），已锁定所有进度树，无法合并版本` },
+        { status: 423 }
+      );
+    }
+
     // 权限检查：组长只能审批本组的版本
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -65,8 +76,12 @@ export async function POST(
       return NextResponse.json({ message: "只能审批本组的版本" }, { status: 403 });
     }
 
-    // 额外验证：如果树的创建者是组长，只有创建者可以审批
-    if (version.tree.creator?.role === "GROUP_LEADER" && version.tree.creatorId !== session.user.id) {
+    // 额外验证：如果树的创建者是组长，只有创建者（或ADMIN）可以审批
+    if (
+      session.user.role !== "ADMIN" &&
+      version.tree.creator?.role === "GROUP_LEADER" &&
+      version.tree.creatorId !== session.user.id
+    ) {
       return NextResponse.json(
         { message: "该进度树由组长创建，只有创建者可以审批此版本" },
         { status: 403 }

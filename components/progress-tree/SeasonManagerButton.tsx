@@ -21,7 +21,7 @@ const CONFIRM_COUNTDOWN = 5; // 秒
 export default function SeasonManagerButton({ currentSeasonName }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"settlement" | "history">("settlement");
+  const [tab, setTab] = useState<"settlement" | "history">("history");
 
   const [settlements, setSettlements] = useState<SeasonSettlement[]>([]);
   const [activeSettlement, setActiveSettlement] = useState<SeasonSettlement | null>(null);
@@ -40,6 +40,14 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // 待提交的数据（验证密码通过后暂存）
   const pendingSubmitRef = useRef<{ seasonName: string; password: string } | null>(null);
+
+  // 新赛季表单（在"切换赛季" Tab 里）
+  const [newSeasonOpen, setNewSeasonOpen] = useState(false);
+  const [newSeasonName, setNewSeasonName] = useState("");
+  const [newSeasonPassword, setNewSeasonPassword] = useState("");
+  const [newSeasonSaving, setNewSeasonSaving] = useState(false);
+  const [newSeasonMsg, setNewSeasonMsg] = useState("");
+  const [newSeasonError, setNewSeasonError] = useState("");
 
   const fetchSettlements = useCallback(async () => {
     setLoading(true);
@@ -96,9 +104,12 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
 
   const handleOpen = () => {
     setOpen(true);
-    setTab("settlement");
+    setTab("history");
     setSettlementMsg("");
     setSettlementError("");
+    setNewSeasonOpen(false);
+    setNewSeasonMsg("");
+    setNewSeasonError("");
   };
 
   /* -------- 第一步：验证输入，弹确认窗 -------- */
@@ -165,12 +176,53 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
     }
   };
 
-  /* -------- 切换历史赛季 -------- */
+  /* -------- 切换历史赛季：使用 settlement.id 作为 URL 参数 -------- */
   const handleSwitchSeason = (settlement: SeasonSettlement) => {
     router.push(
-      `/dashboard/progress-trees?season=${encodeURIComponent(settlement.seasonName)}`
+      `/dashboard/progress-trees?season=${encodeURIComponent(settlement.id)}`
     );
     setOpen(false);
+  };
+
+  /* -------- 返回当前赛季 -------- */
+  const handleBackToCurrent = () => {
+    router.push("/dashboard/progress-trees");
+    setOpen(false);
+  };
+
+  /* -------- 新建赛季（仅创建记录，不触发结算流程）-------- */
+  const handleCreateNewSeason = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSeasonName.trim()) { setNewSeasonError("请填写赛季名称"); return; }
+    if (!newSeasonPassword.trim()) { setNewSeasonError("请填写管理员密码"); return; }
+    setNewSeasonSaving(true);
+    setNewSeasonMsg("");
+    setNewSeasonError("");
+    try {
+      const res = await fetch("/api/season-settlements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seasonName: newSeasonName.trim(),
+          password: newSeasonPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "创建失败");
+      setNewSeasonMsg(`✓ 赛季"${newSeasonName.trim()}"已创建`);
+      setNewSeasonName("");
+      setNewSeasonPassword("");
+      setNewSeasonOpen(false);
+      fetchSettlements();
+      // 切换到新赛季视图
+      router.push(
+        `/dashboard/progress-trees?season=${encodeURIComponent(data.id)}`
+      );
+    } catch (err: any) {
+      setNewSeasonError(err.message);
+    } finally {
+      setNewSeasonSaving(false);
+    }
   };
 
   const statusLabel = (s: string) =>
@@ -220,8 +272,8 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
             <div className="flex border-b border-gray-100 px-6">
               {(
                 [
-                  { key: "settlement", label: "开启赛季结算" },
-                  { key: "history", label: "切换历史赛季" },
+                  { key: "history", label: "切换赛季" },
+                  { key: "settlement", label: "赛季结算管理" },
                 ] as const
               ).map(({ key, label }) => (
                 <button
@@ -239,8 +291,133 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
             </div>
 
             {/* 内容区 */}
-            <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
-              {/* --- 开启赛季结算 --- */}
+            <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">
+
+              {/* --- 切换赛季 Tab --- */}
+              {tab === "history" && (
+                <div className="space-y-4">
+                  {newSeasonMsg && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded-lg text-sm">
+                      {newSeasonMsg}
+                    </div>
+                  )}
+
+                  {loading ? (
+                    <p className="text-sm text-gray-400 text-center py-4">加载中…</p>
+                  ) : (
+                    <>
+                      {/* 当前赛季入口 */}
+                      <div className="flex items-center justify-between py-2 px-3 bg-indigo-50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-semibold text-indigo-800">当前赛季（最新）</p>
+                          <p className="text-xs text-indigo-500 mt-0.5">{currentSeasonName}</p>
+                        </div>
+                        <button
+                          onClick={handleBackToCurrent}
+                          className="text-sm text-indigo-600 underline underline-offset-2 hover:text-indigo-800 font-medium"
+                        >
+                          切换
+                        </button>
+                      </div>
+
+                      {/* 历史赛季列表 */}
+                      {settlements.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-2">暂无历史赛季</p>
+                      ) : (
+                        <ul className="divide-y divide-gray-100">
+                          {settlements.map((s) => (
+                            <li key={s.id} className="flex items-center justify-between py-3">
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{s.seasonName}</p>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {new Date(s.createdAt).toLocaleDateString("zh-CN")}
+                                  {s.completedAt &&
+                                    ` → ${new Date(s.completedAt).toLocaleDateString("zh-CN")}`}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(s.status)}`}
+                                >
+                                  {statusLabel(s.status)}
+                                </span>
+                                <button
+                                  onClick={() => handleSwitchSeason(s)}
+                                  className="text-sm text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                                >
+                                  切换
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {/* 分割线 */}
+                      <div className="border-t border-gray-100 pt-4">
+                        {!newSeasonOpen ? (
+                          <button
+                            onClick={() => { setNewSeasonOpen(true); setNewSeasonError(""); }}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 text-sm rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-colors"
+                          >
+                            <span className="text-lg leading-none">＋</span>
+                            <span>添加新赛季</span>
+                          </button>
+                        ) : (
+                          <form onSubmit={handleCreateNewSeason} className="space-y-3 bg-gray-50 rounded-lg p-4">
+                            <p className="text-sm font-medium text-gray-700">创建新赛季</p>
+                            {newSeasonError && (
+                              <p className="text-xs text-red-600">{newSeasonError}</p>
+                            )}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">赛季名称 *</label>
+                              <input
+                                type="text"
+                                value={newSeasonName}
+                                onChange={(e) => setNewSeasonName(e.target.value)}
+                                autoComplete="off"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="例如：2027赛季"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">管理员密码 *</label>
+                              <input
+                                type="password"
+                                value={newSeasonPassword}
+                                onChange={(e) => setNewSeasonPassword(e.target.value)}
+                                autoComplete="new-password"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="输入密码以防误操作"
+                                required
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setNewSeasonOpen(false); setNewSeasonError(""); }}
+                                className="flex-1 px-3 py-1.5 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50"
+                              >
+                                取消
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={newSeasonSaving}
+                                className="flex-1 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                              >
+                                {newSeasonSaving ? "创建中…" : "创建"}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* --- 赛季结算管理 Tab --- */}
               {tab === "settlement" && (
                 <div className="space-y-4">
                   {settlementMsg && (
@@ -336,48 +513,6 @@ export default function SeasonManagerButton({ currentSeasonName }: Props) {
                         {settling ? "启动中…" : "下一步"}
                       </button>
                     </form>
-                  )}
-                </div>
-              )}
-
-              {/* --- 切换历史赛季 --- */}
-              {tab === "history" && (
-                <div className="space-y-3">
-                  {loading ? (
-                    <p className="text-sm text-gray-400 text-center py-4">加载中…</p>
-                  ) : settlements.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">暂无历史赛季记录</p>
-                  ) : (
-                    <ul className="divide-y divide-gray-100">
-                      {settlements.map((s) => (
-                        <li
-                          key={s.id}
-                          className="flex items-center justify-between py-3"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">{s.seasonName}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                              {new Date(s.createdAt).toLocaleDateString("zh-CN")}
-                              {s.completedAt &&
-                                ` → ${new Date(s.completedAt).toLocaleDateString("zh-CN")}`}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(s.status)}`}
-                            >
-                              {statusLabel(s.status)}
-                            </span>
-                            <button
-                              onClick={() => handleSwitchSeason(s)}
-                              className="text-sm text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
-                            >
-                              切换
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
                   )}
                 </div>
               )}

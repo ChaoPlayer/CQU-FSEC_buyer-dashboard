@@ -13,6 +13,7 @@ interface Props {
   userGroupId: string | null;
   ownGroup: Group | null;
   otherGroups: Group[];
+  seasonId?: string | null;
 }
 
 const tabBase = "whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors";
@@ -25,7 +26,13 @@ export default function ProgressTreeGroupTabs({
   userGroupId,
   ownGroup,
   otherGroups,
+  seasonId,
 }: Props) {
+  // 构建带 season 参数的链接
+  const buildHref = (groupParam: string) => {
+    const base = `/dashboard/progress-trees?group=${groupParam}`;
+    return seasonId ? `${base}&season=${encodeURIComponent(seasonId)}` : base;
+  };
   const [expanded, setExpanded] = useState(false);
 
   // ── 管理员：全部 Tab + 所有组（自己组优先，与原逻辑一致）──
@@ -35,7 +42,7 @@ export default function ProgressTreeGroupTabs({
       <div className="mb-8 border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="组别切换">
           <a
-            href="/dashboard/progress-trees?group=all"
+            href={buildHref("all")}
             className={`${tabBase} ${activeGroupId === null ? tabActive : tabInactive}`}
             aria-current={activeGroupId === null ? "page" : undefined}
           >
@@ -46,7 +53,7 @@ export default function ProgressTreeGroupTabs({
             return (
               <a
                 key={group.id}
-                href={`/dashboard/progress-trees?group=${group.id}`}
+                href={buildHref(group.id)}
                 className={`${tabBase} ${isActive ? tabActive : tabInactive}`}
                 aria-current={isActive ? "page" : undefined}
               >
@@ -66,7 +73,7 @@ export default function ProgressTreeGroupTabs({
         {/* 自己的组 */}
         {ownGroup && (
           <a
-            href={`/dashboard/progress-trees?group=${ownGroup.id}`}
+            href={buildHref(ownGroup.id)}
             className={`${tabBase} ${activeGroupId === ownGroup.id ? tabActive : tabInactive}`}
             aria-current={activeGroupId === ownGroup.id ? "page" : undefined}
           >
@@ -94,7 +101,7 @@ export default function ProgressTreeGroupTabs({
                   return (
                     <a
                       key={group.id}
-                      href={`/dashboard/progress-trees?group=${group.id}`}
+                      href={buildHref(group.id)}
                       className={`${tabBase} ${isActive ? tabActive : tabInactive}`}
                       aria-current={isActive ? "page" : undefined}
                     >

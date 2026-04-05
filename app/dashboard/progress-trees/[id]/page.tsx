@@ -8,6 +8,8 @@ import { ArrowLeftIcon, DocumentTextIcon, UserGroupIcon, CalendarIcon, CheckCirc
 import VerticalTimeline from "@/components/progress-tree/VerticalTimeline";
 import SubmitVersionButton from "@/components/progress-tree/SubmitVersionButton";
 import MergeActions from "@/components/progress-tree/MergeActions";
+import SeasonKeptButton from "@/components/progress-tree/SeasonKeptButton";
+import EditProgressTreeButton from "@/components/progress-tree/EditProgressTreeButton";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -112,6 +114,15 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
   const mergedVersions = tree.versions.filter(v => v.status === VersionStatus.MERGED);
   const rejectedVersions = tree.versions.filter(v => v.status === VersionStatus.REJECTED);
 
+  // 查询是否有进行中的赛季结算
+  const activeSettlement = await prisma.seasonSettlement.findFirst({
+    where: { status: { in: ["NOT_STARTED", "LEADER_CONFIRMATION"] } },
+    select: { status: true, seasonName: true },
+  });
+  // 组长确认阶段才显示标记保留按钮
+  const inLeaderConfirmation = activeSettlement?.status === "LEADER_CONFIRMATION";
+  const canMarkKept = (isAdmin || isGroupLeader) && inLeaderConfirmation;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
@@ -137,12 +148,12 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
                   {tree.status === TreeStatus.ACTIVE ? '活跃' : '已归档'}
                 </span>
                 {canManage && (
-                  <Link
-                    href={`/dashboard/progress-trees/${tree.id}/edit`}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    编辑
-                  </Link>
+                  <EditProgressTreeButton
+                    treeId={tree.id}
+                    treeName={tree.name}
+                    treeDescription={tree.description}
+                    treeStatus={tree.status}
+                  />
                 )}
               </div>
             </div>
@@ -189,7 +200,7 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
                   )}
                   <div className="mt-2">
                     <a
-                      href={`/uploads/progress-trees/${tree.group.name}/${mainVersion.fileUrl}`}
+                      href={mainVersion.fileUrl ?? "#"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
@@ -206,8 +217,16 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
           {/* 版本列表 */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-900">版本历史</h2>
-              {canSubmit && (
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">版本历史</h2>
+                {activeSettlement && (
+                  <p className="text-xs mt-1 text-amber-600 font-medium">
+                    🔒 赛季结算进行中（{activeSettlement.seasonName}）
+                    {inLeaderConfirmation ? "—— 请标记需要保留的版本" : "—— 提交和合并已锁定"}
+                  </p>
+                )}
+              </div>
+              {canSubmit && !activeSettlement && (
                     <SubmitVersionButton
                       treeId={tree.id}
                       groupName={tree.group.name}
@@ -261,7 +280,7 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
                       </div>
                       <div className="flex flex-col items-end space-y-2">
                         <a
-                          href={`/uploads/progress-trees/${tree.group.name}/${version.fileUrl}`}
+                          href={version.fileUrl ?? "#"}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
@@ -269,8 +288,15 @@ export default async function ProgressTreeDetailPage({ params }: PageProps) {
                           <DocumentTextIcon className="w-4 h-4 mr-1" />
                           下载
                         </a>
-                        {canManage && version.status === VersionStatus.PENDING && version.type === VersionType.BRANCH && (
+                        {canManage && version.status === VersionStatus.PENDING && version.type === VersionType.BRANCH && !activeSettlement && (
                           <MergeActions version={version} />
+                        )}
+                        {canMarkKept && (
+                          <SeasonKeptButton
+                            versionId={version.id}
+                            initialKept={(version as any).seasonKept ?? false}
+                            inLeaderConfirmation={inLeaderConfirmation}
+                          />
                         )}
                       </div>
                     </div>

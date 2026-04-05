@@ -206,17 +206,19 @@ enum SettlementStatus {
 }
 
 model ProgressTree {
-  id          String        @id @default(cuid())
+  id          String            @id @default(cuid())
   name        String
   description String?
-  group       TeamGroup     @relation(fields: [groupId], references: [id])
+  group       TeamGroup         @relation(fields: [groupId], references: [id])
   groupId     String
   creatorId   String?
-  creator     User?         @relation("ProgressTreeCreator", fields: [creatorId], references: [id])
-  status      TreeStatus    @default(ACTIVE)
+  creator     User?             @relation("ProgressTreeCreator", fields: [creatorId], references: [id])
+  status      TreeStatus        @default(ACTIVE)
+  seasonId    String?           // 归属赛季（null = 当前无标签，归入当前视图）
+  season      SeasonSettlement? @relation("ProgressTreeSeason", fields: [seasonId], references: [id])
   versions    TreeVersion[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 }
 
 model TreeVersion {
@@ -249,16 +251,17 @@ model TreeVersion {
 }
 
 model SeasonSettlement {
-  id          String           @id @default(cuid())
-  seasonName  String           // 如 "2025赛季"
-  status      SettlementStatus @default(NOT_STARTED)
-  startedBy   User             @relation("SeasonSettlementStartedBy", fields: [startedById], references: [id])
-  startedById String
-  startedAt   DateTime?
-  completedAt DateTime?
-  data        Json?            // 存储各组确认的元数据（JSON结构）
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id            String           @id @default(cuid())
+  seasonName    String           // 如 "2025赛季"
+  status        SettlementStatus @default(NOT_STARTED)
+  startedBy     User             @relation("SeasonSettlementStartedBy", fields: [startedById], references: [id])
+  startedById   String
+  startedAt     DateTime?
+  completedAt   DateTime?
+  data          Json?            // 存储各组确认的元数据（JSON结构）
+  progressTrees ProgressTree[]   @relation("ProgressTreeSeason")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 }
 
 model InviteCode {

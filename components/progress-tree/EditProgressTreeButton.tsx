@@ -24,6 +24,8 @@ export default function EditProgressTreeButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const handleOpen = () => {
     // 重置表单为当前值
@@ -32,7 +34,34 @@ export default function EditProgressTreeButton({
     setStatus(treeStatus);
     setError(null);
     setSuccessMsg(null);
+    setDeleteConfirm(false);
     setIsOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/progress-trees/${treeId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "删除失败");
+      }
+      setIsOpen(false);
+      router.push("/dashboard/progress-trees");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || "未知错误");
+      setDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,6 +204,45 @@ export default function EditProgressTreeButton({
                       </button>
                     </div>
                   </form>
+
+                  {/* 危险区域：删除进度树 */}
+                  <div className="mt-6 pt-5 border-t border-red-100">
+                    <p className="text-xs text-gray-500 mb-3">危险操作</p>
+                    {deleteConfirm ? (
+                      <div className="rounded-md bg-red-50 border border-red-200 p-3">
+                        <p className="text-sm text-red-800 mb-3 font-medium">
+                          ⚠️ 确认删除？此操作不可恢复，将同时删除所有版本记录。
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(false)}
+                            disabled={deleting}
+                            className="px-3 py-1.5 text-sm border border-gray-300 rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            取消
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            className="px-3 py-1.5 text-sm rounded text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {deleting ? "删除中..." : "确认删除"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={loading || deleting}
+                        className="px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-md hover:bg-red-50 disabled:opacity-50 transition"
+                      >
+                        删除进度树
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

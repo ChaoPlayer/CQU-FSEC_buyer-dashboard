@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createNotification } from "@/lib/notifications";
+import bcrypt from "bcryptjs";
 
 // 获取赛季结算列表（仅管理员）
 export async function GET(request: Request) {
@@ -50,10 +51,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "赛季名称为必填项" }, { status: 400 });
     }
 
-    // 验证管理员密码（可选，可根据实际需求调整）
-    // 此处假设密码验证逻辑已由前端处理，或使用固定密码
-    // 这里简化处理，实际项目中应使用更安全的验证机制
-    if (!password || password !== process.env.SEASON_SETTLEMENT_PASSWORD) {
+    // 验证当前管理员的账户密码
+    if (!password) {
+      return NextResponse.json({ message: "请输入密码" }, { status: 400 });
+    }
+    const adminUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { password: true },
+    });
+    if (!adminUser?.password) {
+      return NextResponse.json({ message: "账户信息异常，无法验证密码" }, { status: 500 });
+    }
+    const isPasswordValid = await bcrypt.compare(password, adminUser.password);
+    if (!isPasswordValid) {
       return NextResponse.json({ message: "密码错误" }, { status: 401 });
     }
 

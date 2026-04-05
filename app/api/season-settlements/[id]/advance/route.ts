@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { createNotification } from "@/lib/notifications";
 
 export async function PATCH(
   request: Request,
@@ -43,25 +44,65 @@ export async function PATCH(
     const updateData: any = {
       status: targetStatus,
     };
+
     if (targetStatus === "LEADER_CONFIRMATION") {
       updateData.startedAt = new Date();
-      // 这里可以添加锁定逻辑：禁止新版本提交和合并
-      // 例如，设置一个全局标志或记录日志
+
+      // 通知所有组长进入确认阶段
+      const groupLeaders = await prisma.user.findMany({
+        where: { role: "GROUP_LEADER" },
+        select: { id: true },
+      });
+      for (const leader of groupLeaders) {
+        await createNotification({
+          userId: leader.id,
+          type: "season_settlement_started",
+          title: `赛季结算进入组长确认阶段：${settlement.seasonName}`,
+          content: `管理员已推进赛季结算到组长确认阶段，请及时登录系统，标记本组需要保留的进度树版本（在进度树详情页版本列表中操作）。`,
+        });
+      }
     }
+
     if (targetStatus === "COMPLETED") {
       updateData.completedAt = new Date();
-      // 这里可以添加清理逻辑：删除未保留的版本文件，更新 seasonKept 等
-      // 暂时只更新状态
+
+      // ── 归档逻辑 ──
+      // 1. 将所有活跃进度树状态改为 ARCHIVED
+      await prisma.progressTree.updateMany({
+        where: { status: "ACTIVE" },
+        data: { status: "ARCHIVED" },
+      });
+
+      // 2. 将所有未被 seasonKept 标记的 PENDING 分支版本改为 REJECTED（归档处理）
+      await prisma.treeVersion.updateMany({
+        where: {
+          status: "PENDING",
+          seasonKept: false,
+        },
+        data: {
+          status: "REJECTED",
+          rejectionReason: `赛季结算（${settlement.seasonName}）完成，未被保留的待审核版本已自动归档`,
+        },
+      });
+
+      // 3. 通知所有用户赛季结算完成
+      const allUsers = await prisma.user.findMany({
+        select: { id: true },
+      });
+      for (const user of allUsers) {
+        await createNotification({
+          userId: user.id,
+          type: "season_settlement_started",
+          title: `赛季结算已完成：${settlement.seasonName}`,
+          content: `${settlement.seasonName} 赛季结算已完成，所有进度树已归档。新赛季进度树将由管理员重新创建。`,
+        });
+      }
     }
 
     const updated = await prisma.seasonSettlement.update({
       where: { id },
       data: updateData,
     });
-
-    // 根据状态发送通知
-    // 可以调用 createNotification 通知组长或管理员
-    // 暂时省略
 
     return NextResponse.json(updated);
   } catch (error) {

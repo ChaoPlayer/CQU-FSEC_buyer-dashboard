@@ -9,6 +9,7 @@ import {
   ClockIcon,
   FolderIcon,
   ChevronRightIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
 
 interface ProgressTreeCardProps {
@@ -17,6 +18,11 @@ interface ProgressTreeCardProps {
       id: string;
       name: string;
     };
+    creator?: {
+      id: string;
+      realName: string;
+      email: string;
+    } | null;
     versions: (TreeVersion & {
       submitter: {
         id: string;
@@ -154,10 +160,16 @@ export default function ProgressTreeCard({ tree }: ProgressTreeCardProps) {
             <span>{versionCount} 个版本</span>
           </div>
           <div className="flex items-center text-sm text-gray-500">
+            <UserIcon className="w-4 h-4 mr-2 text-gray-400" />
+            <span className="truncate">
+              创建人：{tree.creator?.realName || tree.creator?.email || "未知"}
+            </span>
+          </div>
+          <div className="flex items-center text-sm text-gray-500">
             <CalendarIcon className="w-4 h-4 mr-2 text-gray-400" />
             <span>创建于 {formatRelative(new Date(tree.createdAt))}</span>
           </div>
-          <div className="flex items-center text-sm text-gray-500">
+          <div className="flex items-center text-sm text-gray-500 col-span-2">
             <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
             <span>更新于 {formatRelative(new Date(tree.updatedAt))}</span>
           </div>

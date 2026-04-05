@@ -298,11 +298,6 @@ export default function HorizontalTimeline({ treeId, versions: initialVersions, 
     return [...merged, ...pending];
   };
 
-  const maxBranchCount = mainVersions.reduce((max, m) => Math.max(max, branchesForMain(m.id).length), 0);
-  const svgHeight = maxBranchCount > 0
-    ? BRANCH_BASE_Y + maxBranchCount * BRANCH_ROW_H + 28
-    : MAIN_Y + 36;
-
   const totalMainCols = mainVersions.length;
   const stepWidth = containerWidth * 0.30;
   const anchorX = Math.max(containerWidth * 0.75, LEFT_MARGIN + (totalMainCols - 1) * stepWidth);
@@ -310,6 +305,109 @@ export default function HorizontalTimeline({ treeId, versions: initialVersions, 
 
   const mainColX = (idx: number) => anchorX - (totalMainCols - 1 - idx) * stepWidth;
   const branchOffsetX = Math.max(stepWidth * 0.25, 40);
+
+  // ── 仅对同一节点的多个分支分层，其他保持水平对齐 ──────────────────────
+  const branchGlobalRow = new Map<string, number>(); // branchId → row
+  let maxUsedRow = 0;
+
+  // 为每个主线节点的分支分配行号
+  for (const main of mainVersions) {
+    const branches = branchesForMain(main.id);
+    if (branches.length <= 1) {
+      // 单个分支：使用 row 0（基准行）
+      branches.forEach(branch => branchGlobalRow.set(branch.id, 0));
+    } else {
+      // 多个分支：按时间顺序分层（row 0, 1, 2...）
+      const sortedBranches = branches.sort((a, b) => 
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      sortedBranches.forEach((branch, idx) => {
+        branchGlobalRow.set(branch.id, idx);
+        if (idx > maxUsedRow) maxUsedRow = idx;
+      });
+    }
+  }
+
+  const totalBranchRows = maxUsedRow + 1;
+
+  // ── 扇形偏移连接点计算（防止交叉 + 防止汇入/引出重叠）──────────────
+  const branchLeftConnX = new Map<string, number>();  // branchId → 从父节点出发的连接 x
+  const branchRightConnX = new Map<string, number>(); // branchId → 到合并节点的连接 x
+  const FAN_SPREAD = 10; // 多线共享节点时的横向间距(px)，必须 > CORNER_R(8) 才不交叉
+  const SEP_HALF = 4;    // 汇入/引出同节点时，各自偏移量(px)
+
+  // ── 先构建合并目标映射 ──
+  const branchesByMergeTarget: Record<string, VersionWithSubmitter[]> = {};
+  for (const main of mainVersions) {
+    for (const branch of branchesForMain(main.id)) {
+      if (branch.status === VersionStatus.MERGED) {
+        const mergedIntoMain = mainVersions.find(m => m.parentVersionId === branch.id);
+        if (mergedIntoMain) {
+          if (!branchesByMergeTarget[mergedIntoMain.id]) branchesByMergeTarget[mergedIntoMain.id] = [];
+          branchesByMergeTarget[mergedIntoMain.id].push(branch);
+        }
+      }
+    }
+  }
+
+  // ── Pass 1：计算每条分支的近似目标 bx（用于防交叉排序） ──
+  const branchApproxBx = new Map<string, number>();
+  for (const main of mainVersions) {
+    const mainX = mainColX(mainVersions.indexOf(main));
+    for (const branch of branchesForMain(main.id)) {
+      const isMerged = branch.status === VersionStatus.MERGED;
+      if (isMerged) {
+        const mergedIntoMain = mainVersions.find(m => m.parentVersionId === branch.id);
+        const mergedIdx = mergedIntoMain ? mainVersions.indexOf(mergedIntoMain) : -1;
+        const mergeX = mergedIdx !== -1 ? mainColX(mergedIdx) : mainX + branchOffsetX;
+        branchApproxBx.set(branch.id, (mainX + mergeX) / 2);
+      } else {
+        branchApproxBx.set(branch.id, mainX + branchOffsetX);
+      }
+    }
+  }
+
+  // ── Pass 2：左连接点（出发点），按目标 bx 排序分配偏移，防止交叉 ──
+  // 核心规则：目标在左侧的线从左边出发，目标在右侧的线从右边出发 → 不交叉
+  for (const main of mainVersions) {
+    const mainX = mainColX(mainVersions.indexOf(main));
+    const branches = branchesForMain(main.id);
+    const hasIncoming = (branchesByMergeTarget[main.id]?.length ?? 0) > 0;
+    // 按近似目标 bx 升序排列（左目标→左出发，右目标→右出发）
+    const sortedByDest = [...branches].sort(
+      (a, b) => (branchApproxBx.get(a.id) ?? 0) - (branchApproxBx.get(b.id) ?? 0)
+    );
+    // 若同节点同时有汇入线，引出整体偏右（远离从左侧拐入的合并线，避免交叉）
+    const baseShift = (hasIncoming && branches.length > 0) ? +SEP_HALF : 0;
+    sortedByDest.forEach((branch, bIdx) => {
+      const fanOffset = (bIdx - (sortedByDest.length - 1) / 2) * FAN_SPREAD;
+      branchLeftConnX.set(branch.id, mainX + baseShift + fanOffset);
+    });
+  }
+
+  // ── Pass 3：右连接点（到达点），按来源 bx 排序，若节点有引出则整体偏右 ──
+  for (const [targetId, branches] of Object.entries(branchesByMergeTarget)) {
+    const targetMain = mainVersions.find(m => m.id === targetId);
+    if (!targetMain) continue;
+    const targetX = mainColX(mainVersions.indexOf(targetMain));
+    const hasOutgoing = branchesForMain(targetMain.id).length > 0;
+    // 按来源 bx 升序排列（使到达点顺序与来源顺序一致）
+    const sortedBySrc = [...branches].sort(
+      (a, b) => (branchApproxBx.get(a.id) ?? 0) - (branchApproxBx.get(b.id) ?? 0)
+    );
+    // 若同节点同时有引出线，汇入整体偏左（合并线从左侧拐入，不与右侧引出线交叉）
+    const baseShift = hasOutgoing ? -SEP_HALF : 0;
+    sortedBySrc.forEach((branch, bIdx) => {
+      const fanOffset = (bIdx - (sortedBySrc.length - 1) / 2) * FAN_SPREAD;
+      branchRightConnX.set(branch.id, targetX + baseShift + fanOffset);
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────
+
+  const maxBranchCount = totalBranchRows;
+  const svgHeight = maxBranchCount > 0
+    ? BRANCH_BASE_Y + maxBranchCount * BRANCH_ROW_H + 28
+    : MAIN_Y + 36;
 
   const latestMainId = mainVersions[totalMainCols - 1]?.id;
   const lastMainX = mainColX(totalMainCols - 1);
@@ -367,26 +465,33 @@ export default function HorizontalTimeline({ treeId, versions: initialVersions, 
             {mainVersions.map((main, idx) => {
               const px = mainColX(idx);
               const branches = branchesForMain(main.id);
-              return branches.map((branch, bIdx) => {
+              return branches.map((branch) => {
                 const isMerged = branch.status === VersionStatus.MERGED;
                 const mergedIntoMain = isMerged
                   ? mainVersions.find(m => m.parentVersionId === branch.id)
                   : undefined;
                 const mergedNodeIdx = mergedIntoMain ? mainVersions.findIndex(m => m.id === mergedIntoMain.id) : -1;
                 const mergedNodeX = mergedNodeIdx !== -1 ? mainColX(mergedNodeIdx) : -1;
-                const bx = isMerged && mergedNodeX > 0 ? (px + mergedNodeX) / 2 : px + branchOffsetX;
-                const by = BRANCH_BASE_Y + bIdx * BRANCH_ROW_H;
+                // 使用扇形偏移后的连接点（避免相邻分支在共享节点处竖线重叠）
+                const lcx = branchLeftConnX.get(branch.id) ?? px;
+                const rcx = isMerged && mergedNodeX > 0 ? (branchRightConnX.get(branch.id) ?? mergedNodeX) : mergedNodeX;
+                const bx = isMerged && mergedNodeX > 0 ? (lcx + rcx) / 2 : lcx + branchOffsetX;
+                const globalRow = branchGlobalRow.get(branch.id) ?? 0;
+                const by = BRANCH_BASE_Y + globalRow * BRANCH_ROW_H;
                 const startY = MAIN_Y + MAIN_R + 2;
-                const r = 12;
-                const actualR = Math.min(r, (by - startY) / 2);
                 const lineEndX = bx - BRANCH_R;
-                const d2 = `M ${px} ${startY} L ${px} ${by - actualR} Q ${px} ${by}, ${px + actualR} ${by} L ${lineEndX} ${by}`;
+
+                // L 型折线：垂直向下 + 圆角转弯 + 水平延伸至分支节点
+                const CORNER_R = 8;
+                const cornerDownX = Math.min(lcx + CORNER_R, lineEndX);
+                const d2 = `M ${lcx} ${startY} L ${lcx} ${by - CORNER_R} Q ${lcx} ${by} ${cornerDownX} ${by} L ${lineEndX} ${by}`;
+
                 let dMerge = "";
                 if (isMerged && mergedNodeX > 0) {
                   const nextStartY = MAIN_Y + MAIN_R + 2;
                   const rightLineStartX = bx + BRANCH_R;
-                  const rightActualR = Math.min(r, Math.abs(by - nextStartY) / 2);
-                  dMerge = `M ${rightLineStartX} ${by} L ${mergedNodeX - rightActualR} ${by} Q ${mergedNodeX} ${by}, ${mergedNodeX} ${by - rightActualR} L ${mergedNodeX} ${nextStartY}`;
+                  const cornerUpX = Math.max(rcx - CORNER_R, rightLineStartX);
+                  dMerge = `M ${rightLineStartX} ${by} L ${cornerUpX} ${by} Q ${rcx} ${by} ${rcx} ${by - CORNER_R} L ${rcx} ${nextStartY}`;
                 }
                 return (
                   <g key={branch.id}>
@@ -462,15 +567,17 @@ export default function HorizontalTimeline({ treeId, versions: initialVersions, 
 
             {mainVersions.map((main, idx) => {
               const px = mainColX(idx);
-              return branchesForMain(main.id).map((branch, bIdx) => {
-                const bxLabel = (() => {
-                  const isMergedBranch = branch.status === VersionStatus.MERGED;
-                  const mMain = isMergedBranch ? mainVersions.find(m => m.parentVersionId === branch.id) : undefined;
-                  const mIdx = mMain ? mainVersions.findIndex(m => m.id === mMain.id) : -1;
-                  const mX = mIdx !== -1 ? mainColX(mIdx) : -1;
-                  return isMergedBranch && mX > 0 ? (px + mX) / 2 : px + branchOffsetX;
-                })();
-                const byLabel = BRANCH_BASE_Y + bIdx * BRANCH_ROW_H;
+              return branchesForMain(main.id).map((branch) => {
+                const isMergedBranch = branch.status === VersionStatus.MERGED;
+                const mMain = isMergedBranch ? mainVersions.find(m => m.parentVersionId === branch.id) : undefined;
+                const mIdx = mMain ? mainVersions.findIndex(m => m.id === mMain.id) : -1;
+                const mX = mIdx !== -1 ? mainColX(mIdx) : -1;
+                // 使用扇形偏移后的坐标
+                const lcx = branchLeftConnX.get(branch.id) ?? px;
+                const rcx = isMergedBranch && mX > 0 ? (branchRightConnX.get(branch.id) ?? mX) : mX;
+                const bxLabel = isMergedBranch && mX > 0 ? (lcx + rcx) / 2 : lcx + branchOffsetX;
+                const globalRow = branchGlobalRow.get(branch.id) ?? 0;
+                const byLabel = BRANCH_BASE_Y + globalRow * BRANCH_ROW_H;
                 const submitterName = branch.submitter.realName || branch.submitter.email.split("@")[0];
                 const displayLabel = branch.name
                   ? (branch.name.length > 7 ? branch.name.substring(0, 7) + "…" : branch.name)
@@ -516,13 +623,17 @@ export default function HorizontalTimeline({ treeId, versions: initialVersions, 
             })}
             {mainVersions.map((main, idx) => {
               const px = mainColX(idx);
-              return branchesForMain(main.id).map((branch, bIdx) => {
+              return branchesForMain(main.id).map((branch) => {
                 const isMergedBranch = branch.status === VersionStatus.MERGED;
                 const mMain = isMergedBranch ? mainVersions.find(m => m.parentVersionId === branch.id) : undefined;
                 const mIdx = mMain ? mainVersions.findIndex(m => m.id === mMain.id) : -1;
                 const mX = mIdx !== -1 ? mainColX(mIdx) : -1;
-                const bxClick = isMergedBranch && mX > 0 ? (px + mX) / 2 : px + branchOffsetX;
-                const by = BRANCH_BASE_Y + bIdx * BRANCH_ROW_H;
+                // 使用扇形偏移后的坐标
+                const lcx = branchLeftConnX.get(branch.id) ?? px;
+                const rcx = isMergedBranch && mX > 0 ? (branchRightConnX.get(branch.id) ?? mX) : mX;
+                const bxClick = isMergedBranch && mX > 0 ? (lcx + rcx) / 2 : lcx + branchOffsetX;
+                const globalRow = branchGlobalRow.get(branch.id) ?? 0;
+                const by = BRANCH_BASE_Y + globalRow * BRANCH_ROW_H;
                 const hitR = BRANCH_R + 10;
                 return editMode ? (
                   <button

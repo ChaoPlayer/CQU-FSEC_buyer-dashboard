@@ -2,9 +2,15 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
+import { createWriteStream } from "fs";
+import { mkdir } from "fs/promises";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+
+// 允许大文件上传，最长处理时间 5 分钟
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
@@ -33,18 +39,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "未选择文件" }, { status: 400 });
     }
 
-    // 检查文件大小（限制 10MB）
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { message: "文件大小不能超过 10MB" },
-        { status: 400 }
-      );
-    }
-
     // 生成唯一文件名：UUID + 原始文件名（保留扩展名）
     const originalName = file.name;
-    const ext = path.extname(originalName) || ".bin";
     const uuid = randomUUID();
     // 移除原始文件名中的路径和非法字符
     const safeOriginalName = originalName.replace(/[^a-zA-Z0-9\-_.]/g, "_");
@@ -56,8 +52,9 @@ export async function POST(request: Request) {
     // 确保上传目录存在
     await mkdir(uploadDir, { recursive: true });
 
-    // 写入文件
-    await writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+    // 流式写入：边接收边写盘，支持超大文件（200MB+）且不占用大量内存
+    const nodeReadable = Readable.fromWeb(file.stream() as any);
+    await pipeline(nodeReadable, createWriteStream(filePath));
 
     // 返回可访问的 URL 和文件信息
     const fileUrl = `/uploads/${relativeDir}/${fileName}`;

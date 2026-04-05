@@ -13,11 +13,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 验证组别枚举值
-    const validGroups = ["线路组", "电池组", "电控组", "转向组", "车架组", "悬架组", "车身组", "制动组", "传动组", "综合部"];
-    if (!validGroups.includes(group)) {
+    // 验证组别是否在数据库中存在（动态校验，支持管理员随时新增/修改组别）
+    const validGroup = await prisma.teamGroup.findFirst({
+      where: { name: group },
+    });
+    if (!validGroup) {
       return NextResponse.json(
-        { message: "组别选择无效" },
+        { message: "组别选择无效，请刷新页面后重试" },
         { status: 400 }
       );
     }

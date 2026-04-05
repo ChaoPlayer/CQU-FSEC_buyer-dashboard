@@ -65,5 +65,5 @@ USER nextjs
 EXPOSE 3000
 EXPOSE 5555
 
-# 启动命令
-CMD ["node", "server.js"]
+# 启动命令：先同步数据库结构（只创建缺失的表/字段，保留所有数据），再启动服务
+CMD ["sh", "-c", "npx prisma db push --skip-generate 2>&1 && node server.js"]

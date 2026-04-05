@@ -23,6 +23,36 @@ export default function ActivatePage() {
   const [groupsLoading, setGroupsLoading] = useState(false);
   const router = useRouter();
 
+  // 检测 URL 中是否携带 userId 参数（来自 /register 页面的跳转）
+  // 如果有，则通过 GET /api/auth/verify-name?userId=xxx 直接获取用户信息，跳过 verify 步骤
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlUserId = params.get("userId");
+    if (!urlUserId) return;
+
+    setLoading(true);
+    fetch(`/api/auth/verify-name?userId=${encodeURIComponent(urlUserId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setUserId(data.userId);
+          setRealName(data.realName || "");
+          setEmail(data.email || "");
+          setStudentId(data.studentId || "");
+          setGroup(data.group || "");
+          setStep("activate");
+        } else {
+          // userId 无效或账号已激活，显示错误，保留 verify 步骤让用户手动输入
+          setError(data.message || "链接无效，请手动输入姓名进行验证");
+        }
+      })
+      .catch(() => {
+        setError("网络错误，请手动输入姓名进行验证");
+      })
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 进入激活步骤时，若没有预注册组别，则拉取组别列表供用户选择
   useEffect(() => {
     if (step === "activate" && !group.trim() && groups.length === 0) {

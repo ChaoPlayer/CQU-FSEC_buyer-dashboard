@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type View = 'SELECT' | 'INTERNAL' | 'INVITE';
+
+interface Group {
+  id: string;
+  name: string;
+}
 
 export default function RegisterPage() {
   const [view, setView] = useState<View>('SELECT');
@@ -15,9 +20,27 @@ export default function RegisterPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const router = useRouter();
 
-  const groupOptions = ["线路组", "电池组", "电控组", "转向组", "车架组", "悬架组", "车身组", "制动组", "传动组", "综合部"];
+  // 当切换到邀请码注册视图时，拉取组别列表
+  useEffect(() => {
+    if (view === 'INVITE' && groups.length === 0) {
+      setGroupsLoading(true);
+      fetch("/api/groups")
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setGroups(data);
+          }
+        })
+        .catch(() => {
+          // 拉取失败不阻断流程
+        })
+        .finally(() => setGroupsLoading(false));
+    }
+  }, [view, groups.length]);
 
   const handleInternalActivation = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,10 +294,13 @@ export default function RegisterPage() {
                 className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 value={group}
                 onChange={(e) => setGroup(e.target.value)}
+                disabled={groupsLoading}
               >
-                <option value="" disabled>请选择组别</option>
-                {groupOptions.map((opt) => (
-                  <option key={opt} value={opt}>{opt}</option>
+                <option value="" disabled>
+                  {groupsLoading ? "正在加载组别..." : "请选择组别"}
+                </option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.name}>{g.name}</option>
                 ))}
               </select>
             </div>
@@ -303,7 +329,7 @@ export default function RegisterPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || groupsLoading || groups.length === 0}
               className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
               {loading ? "注册中..." : "注册"}

@@ -110,6 +110,17 @@ export async function POST(
       return NextResponse.json({ message: "进度树已归档，无法提交新版本" }, { status: 400 });
     }
 
+    // 检查是否有进行中的赛季结算（锁定状态）
+    const activeSettlement = await prisma.seasonSettlement.findFirst({
+      where: { status: { in: ["NOT_STARTED", "LEADER_CONFIRMATION"] } },
+    });
+    if (activeSettlement) {
+      return NextResponse.json(
+        { message: `赛季结算进行中（${activeSettlement.seasonName}），已锁定所有进度树，无法提交新版本` },
+        { status: 423 }
+      );
+    }
+
     // 权限检查：用户只能向自己组的进度树提交版本
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },

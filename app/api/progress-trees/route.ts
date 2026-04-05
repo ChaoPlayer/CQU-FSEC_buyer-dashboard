@@ -59,6 +59,13 @@ export async function GET(request: Request) {
             name: true,
           },
         },
+        creator: {
+          select: {
+            id: true,
+            realName: true,
+            email: true,
+          },
+        },
         versions: {
           take: 1,
           orderBy: { createdAt: "desc" },
@@ -126,6 +133,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "该组已存在同名进度树" }, { status: 409 });
     }
 
+    // 获取当前最新赛季 ID，创建时自动关联
+    const latestSeason = await prisma.seasonSettlement.findFirst({
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+
     const tree = await prisma.progressTree.create({
       data: {
         name,
@@ -133,6 +146,7 @@ export async function POST(request: Request) {
         groupId,
         creatorId: session.user.id,
         status: "ACTIVE",
+        seasonId: latestSeason?.id ?? null,
       },
       include: {
         group: {
