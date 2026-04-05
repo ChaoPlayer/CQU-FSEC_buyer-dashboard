@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { Group } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,18 +74,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 验证 group 是否为有效枚举值（如果提供了 group）
-    let groupEnum: Group | undefined = undefined;
+    // 验证 group 是否为有效值（动态查 TeamGroup 表，支持管理员随时新增组别）
+    let groupId: string | undefined = undefined;
+    let groupName: string | undefined = undefined;
     if (group && group.trim() !== '') {
-      const groupValue = group.trim() as Group;
-      const validGroups = Object.values(Group);
-      if (!validGroups.includes(groupValue)) {
+      const teamGroup = await prisma.teamGroup.findFirst({
+        where: { name: group.trim() },
+      });
+      if (!teamGroup) {
         return NextResponse.json(
-          { success: false, message: '无效的组别' },
+          { success: false, message: '无效的组别，请刷新页面后重新选择' },
           { status: 400 }
         );
       }
-      groupEnum = groupValue;
+      groupId = teamGroup.id;
+      groupName = teamGroup.name;
     }
 
     // 对密码进行 bcrypt 加密（与 NextAuth 逻辑保持一致）
@@ -99,7 +101,8 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         studentId: studentId?.trim() || null,
-        group: groupEnum,
+        group: groupName ?? undefined,    // 旧字段，过渡期兼容
+        groupId: groupId ?? undefined,    // 新字段，关联 TeamGroup
         password: hashedPassword,
         // 保留 realName 和 name 不变
       },

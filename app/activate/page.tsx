@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+interface Group {
+  id: string;
+  name: string;
+}
 
 export default function ActivatePage() {
   const [step, setStep] = useState<"verify" | "activate">("verify");
@@ -14,9 +19,27 @@ export default function ActivatePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
   const router = useRouter();
 
-  const groupOptions = ["线路组", "电池组", "电控组", "转向组", "车架组", "悬架组", "车身组", "制动组", "传动组", "综合部"];
+  // 进入激活步骤时，若没有预注册组别，则拉取组别列表供用户选择
+  useEffect(() => {
+    if (step === "activate" && !group.trim() && groups.length === 0) {
+      setGroupsLoading(true);
+      fetch("/api/groups")
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setGroups(data);
+          }
+        })
+        .catch(() => {
+          // 拉取失败不阻断流程
+        })
+        .finally(() => setGroupsLoading(false));
+    }
+  }, [step, group, groups.length]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,20 +173,6 @@ export default function ActivatePage() {
           <form className="mt-10 space-y-8" onSubmit={handleActivate}>
             <div className="rounded-md shadow-sm -space-y-px">
               <div>
-                <label htmlFor="realName" className="sr-only">
-                  真实姓名
-                </label>
-                <input
-                  id="realName"
-                  name="realName"
-                  type="text"
-                  className="appearance-none rounded-t-lg relative block w-full px-4 py-3 border bg-gray-100 text-gray-700 border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
-                  value={realName}
-                  readOnly
-                />
-                <p className="text-xs text-gray-500 mt-1">真实姓名已由预注册名单提供，不可修改</p>
-              </div>
-              <div>
                 <label htmlFor="email" className="sr-only">
                   邮箱地址
                 </label>
@@ -173,7 +182,7 @@ export default function ActivatePage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
+                  className="appearance-none rounded-t-lg relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                   placeholder="邮箱地址"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -220,10 +229,13 @@ export default function ActivatePage() {
                     className="appearance-none rounded-none relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent sm:text-sm transition-colors"
                     value={group}
                     onChange={(e) => setGroup(e.target.value)}
+                    disabled={groupsLoading}
                   >
-                    <option value="" disabled>请选择组别（可选）</option>
-                    {groupOptions.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
+                    <option value="" disabled>
+                      {groupsLoading ? "正在加载组别..." : "请选择组别（可选）"}
+                    </option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.name}>{g.name}</option>
                     ))}
                   </select>
                 )}
